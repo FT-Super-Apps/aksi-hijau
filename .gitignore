@@ -2,6 +2,9 @@
 
 # dependencies
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Expo
 .expo/
@@ -31,7 +34,210 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # typescript
 *.tsbuildinfo
+
+# IDE and Editor files
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# React Native
+android/app/build/
+android/build/
+android/.gradle/
+android/gradle/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+android/app/src/main/assets/
+ios/build/
+ios/Pods/
+ios/*.xcworkspace
+ios/*.xcodeproj/xcuserdata/
+ios/*.xcodeproj/project.xcworkspace/
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# Temporary folders
+tmp/
+temp/
+
+# Build artifacts
+build/
+dist/
+
+# VSCode workspace files
+*.code-workspace
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+
+# Generated assets (if you want to ignore dynamically generated assets)
+# assets/generated/
+
+# Figma assets cache
+# assets/figma-cache/
+
+# Auto-generated SVG assets from Figma (with hex names)
+assets/[a-f0-9]*.svg
+# Keep only specific named assets
+!assets/icon-*.svg
+!assets/logo-*.svg
+!assets/img-*.svg
+
+# Package manager lock files (choose one to keep)
+# package-lock.json
+# yarn.lock
+
+# Editor backup files
+*~
+*.tmp
+*.bak
+
+# Windows specific
+*.lnk
+
+# Linux specific
+*~
+
+# Expo specific
+.expo-shared/
+
+# React Native specific
+android/app/src/main/assets/index.android.bundle
+ios/main.jsbundle
+ios/main.jsbundle.map
+
+# Metro bundler cache
+.metro-cache/
+
+# Flipper
+android/app/src/debug/java/com/*/ReactNativeFlipper.java
+
+# Bundle artifacts
+*.jsbundle
+
+# CocoaPods
+ios/Podfile.lock
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Xcode
+ios/build/
+ios/DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData/
+*.hmap
+*.ipa
+*.xcuserstate
+ios/.xcode.env.local
+
+# Android/IntelliJ
+android/.idea/
+android/.gradle/
+android/local.properties
+*.iml
+android/app/google-services.json
+
+# Keystore files
+*.keystore
+android/app/debug.keystore

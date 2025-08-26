@@ -1,0 +1,7 @@
+# VSCode specific settings
+settings.json
+launch.json
+extensions.json
+
+# Workspace specific configurations
+*.code-workspace

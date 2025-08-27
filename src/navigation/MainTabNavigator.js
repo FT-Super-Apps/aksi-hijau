@@ -1,7 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/MainTabs/HomeScreen';
-import ScanScreen from '../screens/MainTabs/ScanScreen';
+import CameraScreen from '../screens/MainTabs/CameraScreen';
 import ProfileScreen from '../screens/MainTabs/ProfileScreen';
 import CustomTabBar from '../components/TabNavigation/CustomTabBar';
 
@@ -24,8 +24,8 @@ export default function MainTabNavigator() {
         }}
       />
       <Tab.Screen
-        name="Scan"
-        component={ScanScreen}
+        name="Camera"
+        component={CameraScreen}
         options={{
           title: 'Camera',
           tabBarStyle: { display: 'none' },

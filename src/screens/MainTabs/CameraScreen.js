@@ -10,6 +10,7 @@ import {
   Platform,
   Modal,
   Animated,
+  Image,
 } from 'react-native';
 import { Camera, CameraView } from 'expo-camera';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -69,23 +70,88 @@ const CameraIcon = ({ color = '#fff', size = 32 }) => (
   </Svg>
 );
 
+const CheckIcon = ({ color = '#fff', size = 24 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M20 6L9 17L4 12"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+const TrashIcon = ({ color = '#fff', size = 24 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M3 6H5H21"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+const RetakeIcon = ({ color = '#fff', size = 24 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C9.5 3 7.26 4.04 5.64 5.64L3 3"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M3 3L3 9L9 9"
+      stroke={color}
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
 // Permission Modal Component
 const PermissionModal = ({ visible, onRequestPermission, onCancel }) => {
   const slideAnim = useRef(new Animated.Value(300)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } else {
-      Animated.timing(slideAnim, {
-        toValue: 300,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 300,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
   }, [visible]);
 
@@ -96,7 +162,7 @@ const PermissionModal = ({ visible, onRequestPermission, onCancel }) => {
       animationType="fade"
       onRequestClose={onCancel}
     >
-      <View style={styles.modalOverlay}>
+      <Animated.View style={[styles.modalOverlay, { opacity: opacityAnim }]}>
         <Animated.View
           style={[
             styles.modalContent,
@@ -104,13 +170,16 @@ const PermissionModal = ({ visible, onRequestPermission, onCancel }) => {
           ]}
         >
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Camera Permission Required</Text>
+            <View style={styles.modalIconContainer}>
+              <CameraIcon color="#10b981" size={48} />
+            </View>
+            <Text style={styles.modalTitle}>Izin Kamera Diperlukan</Text>
           </View>
 
           <View style={styles.modalBody}>
             <Text style={styles.modalMessage}>
-              This app needs access to your camera to take photos.
-              Please allow camera permission to continue.
+              Aplikasi ini memerlukan akses kamera untuk mengambil foto.
+              Silakan berikan izin kamera untuk melanjutkan.
             </Text>
           </View>
 
@@ -119,30 +188,175 @@ const PermissionModal = ({ visible, onRequestPermission, onCancel }) => {
               style={[styles.modalButton, styles.cancelButton]}
               onPress={onCancel}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>Batal</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.modalButton, styles.allowButton]}
               onPress={onRequestPermission}
             >
-              <Text style={styles.allowButtonText}>Allow Camera</Text>
+              <LinearGradient
+                colors={['#10b981', '#059669']}
+                style={styles.allowButtonGradient}
+              >
+                <Text style={styles.allowButtonText}>Izinkan Kamera</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </Animated.View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 };
 
-export default function ScanScreen({ navigation }) {
+// Photo Confirmation Modal Component
+const PhotoConfirmationModal = ({ visible, photoUri, onConfirm, onDelete, onRetake }) => {
+  const slideAnim = useRef(new Animated.Value(300)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          tension: 100,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 300,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 0.9,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [visible]);
+
+  return (
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onDelete}
+    >
+      <Animated.View style={[styles.photoModalOverlay, { opacity: opacityAnim }]}>
+        <Animated.View
+          style={[
+            styles.photoModalContent,
+            {
+              transform: [
+                { translateY: slideAnim },
+                { scale: scaleAnim }
+              ]
+            }
+          ]}
+        >
+          <View style={styles.photoModalHeader}>
+            <View style={styles.photoModalIndicator} />
+            <Text style={styles.photoModalTitle}>Pratinjau Foto</Text>
+            <Text style={styles.photoModalSubtitle}>Apakah Anda ingin menyimpan foto ini?</Text>
+          </View>
+
+          <View style={styles.photoPreviewContainer}>
+            {photoUri && (
+              <Animated.View style={[styles.photoPreviewWrapper, { transform: [{ scale: scaleAnim }] }]}>
+                <Image
+                  source={{ uri: photoUri }}
+                  style={styles.photoPreview}
+                  resizeMode="cover"
+                />
+                <View style={styles.photoPreviewOverlay}>
+                  <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.3)']}
+                    style={styles.photoPreviewGradient}
+                  />
+                </View>
+              </Animated.View>
+            )}
+          </View>
+
+          <View style={styles.photoModalActions}>
+            {/* Secondary Actions Row */}
+            <View style={styles.secondaryActionsRow}>
+              <TouchableOpacity
+                style={[styles.photoActionButton, styles.deleteButton]}
+                onPress={onDelete}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <TrashIcon color="#ef4444" size={18} />
+                </View>
+                <Text style={styles.deleteButtonText}>Hapus</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.photoActionButton, styles.retakeButton]}
+                onPress={onRetake}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <RetakeIcon color="#f59e0b" size={18} />
+                </View>
+                <Text style={styles.retakeButtonText}>Ambil Ulang</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Primary Action */}
+            <TouchableOpacity
+              style={[styles.photoActionButton, styles.saveButton]}
+              onPress={onConfirm}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={['#10b981', '#059669']}
+                style={styles.saveButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <View style={styles.buttonIconContainer}>
+                  <CheckIcon color="#fff" size={20} />
+                </View>
+                <Text style={styles.saveButtonText}>Simpan Foto</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
+};
+
+export default function CameraScreenn({ navigation }) {
   const [hasPermission, setHasPermission] = useState(null);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [capturedPhoto, setCapturedPhoto] = useState(null);
+  const [showPhotoConfirmation, setShowPhotoConfirmation] = useState(false);
 
   const cameraRef = useRef(null);
 
-  // Animation values
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -178,15 +392,47 @@ export default function ScanScreen({ navigation }) {
           skipProcessing: false,
         });
 
-        Alert.alert('Photo Taken!', `Photo saved temporarily at: ${photo.uri}`);
+        // Simpan foto dan tampilkan modal konfirmasi
+        setCapturedPhoto(photo);
+        setShowPhotoConfirmation(true);
 
       } catch (error) {
         console.error('Error taking picture:', error);
-        Alert.alert('Error', 'Failed to take picture');
+        Alert.alert('Kesalahan', 'Gagal mengambil foto');
       } finally {
         setIsCapturing(false);
       }
     }
+  };
+
+  const handleConfirmPhoto = () => {
+    setShowPhotoConfirmation(false);
+    Alert.alert(
+      'Foto Tersimpan!',
+      `Foto berhasil disimpan!`,
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            setCapturedPhoto(null);
+            // Anda bisa menambahkan logika penyimpanan foto di sini
+            // misalnya menyimpan ke galeri atau upload ke server
+          }
+        }
+      ]
+    );
+  };
+
+  const handleDeletePhoto = () => {
+    setShowPhotoConfirmation(false);
+    setCapturedPhoto(null);
+    // Foto akan otomatis terhapus dari state
+  };
+
+  const handleRetakePhoto = () => {
+    setShowPhotoConfirmation(false);
+    setCapturedPhoto(null);
+    // Kembali ke mode kamera untuk mengambil foto ulang
   };
 
   const requestCameraPermission = async () => {
@@ -238,7 +484,7 @@ export default function ScanScreen({ navigation }) {
           <TouchableOpacity style={styles.permissionNavButton} onPress={handleGoBack}>
             <BackIcon color="#333" size={24} />
           </TouchableOpacity>
-          <Text style={styles.permissionHeaderTitle}>Camera Permission</Text>
+          <Text style={styles.permissionHeaderTitle}>Izin Kamera</Text>
           <View style={styles.permissionNavButton} />
         </View>
 
@@ -246,9 +492,9 @@ export default function ScanScreen({ navigation }) {
           <View style={styles.permissionIcon}>
             <CameraIcon color="#64748b" size={64} />
           </View>
-          <Text style={styles.permissionTitle}>Camera Access Required</Text>
+          <Text style={styles.permissionTitle}>Akses Kamera Diperlukan</Text>
           <Text style={styles.permissionMessage}>
-            To take photos, please allow camera access in your device settings.
+            Untuk mengambil foto, silakan berikan akses kamera pada pengaturan perangkat Anda.
           </Text>
           <TouchableOpacity
             style={styles.permissionButton}
@@ -258,7 +504,7 @@ export default function ScanScreen({ navigation }) {
               colors={['#10b981', '#059669']}
               style={styles.permissionButtonGradient}
             >
-              <Text style={styles.permissionButtonText}>Enable Camera</Text>
+              <Text style={styles.permissionButtonText}>Aktifkan Kamera</Text>
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -284,7 +530,7 @@ export default function ScanScreen({ navigation }) {
           <View style={styles.loadingIcon}>
             <CameraIcon color="#64748b" size={48} />
           </View>
-          <Text style={styles.loadingText}>Requesting camera permission...</Text>
+          <Text style={styles.loadingText}>Meminta izin kamera...</Text>
         </View>
 
         <PermissionModal
@@ -317,9 +563,7 @@ export default function ScanScreen({ navigation }) {
               <BackIcon color="#fff" size={24} />
             </TouchableOpacity>
 
-            <Text style={styles.headerTitle}>Camera</Text>
-
-            {/* Placeholder for symmetry */}
+            <Text style={styles.headerTitle}>Kamera</Text>
             <View style={styles.navButton} />
           </View>
         </LinearGradient>
@@ -338,7 +582,8 @@ export default function ScanScreen({ navigation }) {
 
             {/* Guide text */}
             <View style={styles.frameGuide}>
-              <Text style={styles.frameGuideText}>Position subject within frame</Text>
+              <Text style={styles.frameGuideText}>Posisikan objek di dalam bingkai</Text>
+              <Text style={styles.frameGuideSubtext}>Pastikan pencahayaan cukup untuk hasil terbaik</Text>
             </View>
           </View>
         </View>
@@ -381,6 +626,15 @@ export default function ScanScreen({ navigation }) {
         onRequestPermission={handlePermissionRequest}
         onCancel={handlePermissionCancel}
       />
+
+      {/* Photo Confirmation Modal */}
+      <PhotoConfirmationModal
+        visible={showPhotoConfirmation}
+        photoUri={capturedPhoto?.uri}
+        onConfirm={handleConfirmPhoto}
+        onDelete={handleDeletePhoto}
+        onRetake={handleRetakePhoto}
+      />
     </View>
   );
 }
@@ -395,7 +649,7 @@ const styles = StyleSheet.create({
   },
   headerGradient: {
     paddingTop: Platform.OS === 'ios' ? 50 : 40,
-    paddingBottom: 20,
+    paddingBottom: 8,
   },
   header: {
     flexDirection: 'row',
@@ -439,7 +693,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   photoFrame: {
-    width: width * 0.7,
+    width: width * 0.75,
     height: height * 0.6, // Making it taller - using screen height for vertical extension
     position: 'relative',
     borderWidth: 2,
@@ -448,49 +702,60 @@ const styles = StyleSheet.create({
   },
   frameCorner: {
     position: 'absolute',
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     borderColor: '#fff',
     borderWidth: 3,
   },
   topLeft: {
-    top: 0,
-    left: 0,
+    top: -2,
+    left: -2,
     borderRightWidth: 0,
     borderBottomWidth: 0,
-    borderTopLeftRadius: 8,
+    borderTopLeftRadius: 12,
   },
   topRight: {
-    top: 0,
-    right: 0,
+    top: -2,
+    right: -2,
     borderLeftWidth: 0,
     borderBottomWidth: 0,
-    borderTopRightRadius: 8,
+    borderTopRightRadius: 12,
   },
   bottomLeft: {
-    bottom: 0,
-    left: 0,
+    bottom: -2,
+    left: -2,
     borderRightWidth: 0,
     borderTopWidth: 0,
-    borderBottomLeftRadius: 8,
+    borderBottomLeftRadius: 12,
   },
   bottomRight: {
-    bottom: 0,
-    right: 0,
+    bottom: -2,
+    right: -2,
     borderLeftWidth: 0,
     borderTopWidth: 0,
-    borderBottomRightRadius: 8,
+    borderBottomRightRadius: 12,
   },
   frameGuide: {
-    marginTop: 20,
+    marginTop: 16,
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
   frameGuideText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
     textAlign: 'center',
     textShadowColor: 'rgba(0, 0, 0, 0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    marginBottom: 8,
+  },
+  frameGuideSubtext: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    fontWeight: '400',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
@@ -521,29 +786,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   captureButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowRadius: 12,
+    elevation: 12,
+    borderWidth: 4,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   captureButtonInner: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#10b981',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
   },
   capturingButton: {
     backgroundColor: '#059669',
-    transform: [{ scale: 0.95 }],
+    transform: [{ scale: 0.92 }],
   },
   placeholderButton: {
     width: 50,
@@ -642,25 +914,41 @@ const styles = StyleSheet.create({
   // Modal styles - updated for modern design
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 24,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 32,
+    paddingBottom: Platform.OS === 'ios' ? 44 : 32,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 16,
   },
   modalHeader: {
     paddingHorizontal: 24,
-    paddingBottom: 20,
+    paddingBottom: 24,
+    alignItems: 'center',
+  },
+  modalIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#1f2937',
     textAlign: 'center',
+    marginBottom: 8,
   },
   modalBody: {
     paddingHorizontal: 24,
@@ -675,19 +963,28 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     paddingHorizontal: 24,
-    gap: 12,
+    gap: 16,
   },
   modalButton: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 18,
     borderRadius: 16,
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   allowButton: {
-    backgroundColor: '#10b981',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  allowButtonGradient: {
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    alignItems: 'center',
+    width: '100%',
   },
   cancelButtonText: {
     color: '#6b7280',
@@ -698,5 +995,152 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Photo Confirmation Modal styles
+  photoModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'flex-end',
+  },
+  photoModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 44 : 32,
+    maxHeight: height * 0.9,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 16,
+  },
+  photoModalIndicator: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  photoModalHeader: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    alignItems: 'center',
+  },
+  photoModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  photoModalSubtitle: {
+    fontSize: 16,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  photoPreviewContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+    alignItems: 'center',
+  },
+  photoPreviewWrapper: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 16,
+  },
+  photoPreview: {
+    width: width * 0.85,
+    height: height * 0.5,
+    backgroundColor: '#f3f4f6',
+  },
+  photoPreviewOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+  },
+  photoPreviewGradient: {
+    flex: 1,
+  },
+  photoModalActions: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    gap: 16,
+  },
+  secondaryActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  photoActionButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 52,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonIconContainer: {
+    marginRight: 2,
+  },
+  deleteButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#fee2e2',
+    shadowColor: '#ef4444',
+  },
+  retakeButton: {
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#fef3c7',
+    shadowColor: '#f59e0b',
+  },
+  saveButton: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  saveButtonGradient: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    minHeight: 56,
+  },
+  deleteButtonText: {
+    color: '#dc2626',
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  retakeButtonText: {
+    color: '#d97706',
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
 });

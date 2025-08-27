@@ -7,9 +7,9 @@ import ProfileIcon from './ProfileIcon';
 const { width } = Dimensions.get('window');
 
 export default function CustomTabBar({ state, descriptors, navigation }) {
-  // Hide tab bar when on Scan screen
+  // Hide tab bar when on Scan or Camera screen
   const currentRoute = state.routes[state.index];
-  if (currentRoute.name === 'Scan') {
+  if (currentRoute.name === 'Scan' || currentRoute.name === 'Camera') {
     return null;
   }
 
@@ -87,7 +87,7 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
       {/* Modern Floating Scanner Button */}
       <TouchableOpacity
         style={styles.scanButtonContainer}
-        onPress={() => navigation.navigate('Scan')}
+        onPress={() => navigation.navigate('Camera')}
         activeOpacity={0.8}
       >
         <View style={styles.scanButtonOuter}>

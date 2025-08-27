@@ -9,7 +9,7 @@ import {
   GoldenDecoration,
   FlowingFern,
   OrangeDot
-} from '../utils/SvgAssets';
+} from '../../utils/SvgAssets';
 
 const { width, height } = Dimensions.get('window');
 

@@ -18,62 +18,72 @@ import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
 
 const { width, height } = Dimensions.get('window');
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkModeEnabled, setDarkModeEnabled] = useState(false);
 
-  // Mock user data
+  // Mock user data - Updated for Ahmad Wijaya in Makassar
   const userData = {
-    name: 'Sarah Johnson',
-    email: 'sarah.johnson@ecounity.com',
-    profileImage: 'https://via.placeholder.com/120x120/549B79/FFFFFF?text=SJ',
-    level: 'Eco Champion',
-    badge: '🏆',
-    joinDate: 'Bergabung sejak Januari 2024',
-    location: 'Jakarta, Indonesia',
-    totalPoints: 2850,
-    rank: 15,
-    plantsGrown: 47,
-    co2Saved: 680,
-    wasteRecycled: 28
+    name: 'Ahmad Wijaya',
+    email: 'ahmad.wijaya@sedekah-hijau.id',
+    profileImage: require('../../../assets/home/avatar.png'),
+    level: 'Pelopor Hijau',
+    badge: '�',
+    joinDate: 'Bergabung sejak Februari 2024',
+    location: 'Makassar, Sulawesi Selatan',
+    totalPoints: 3247,
+    rank: 8,
+    plantsGrown: 89,
+    co2Saved: 1247,
+    wasteRecycled: 45
   };
 
   const achievements = [
-    { id: 1, title: 'Tree Lover', icon: '🌳', description: 'Tanam 50 pohon', progress: 94, earned: true },
-    { id: 2, title: 'Eco Warrior', icon: '⚔️', description: 'Complete 100 misi', progress: 75, earned: true },
-    { id: 3, title: 'Green Master', icon: '🥇', description: 'Hemat 1000kg CO₂', progress: 68, earned: false },
-    { id: 4, title: 'Recycle King', icon: '♻️', description: 'Daur ulang 50kg sampah', progress: 56, earned: false }
+    { id: 1, title: 'Penjaga Hutan', icon: '🌳', description: 'Tanam 50 pohon di RTH', progress: 100, earned: true },
+    { id: 2, title: 'Warior Hijau', icon: '⚔️', description: 'Selesaikan 75 misi lingkungan', progress: 89, earned: true },
+    { id: 3, title: 'Master Karbon', icon: '🥇', description: 'Hemat 1000kg CO₂', progress: 124, earned: true },
+    { id: 4, title: 'Raja Daur Ulang', icon: '♻️', description: 'Daur ulang 50kg sampah', progress: 90, earned: true },
+    { id: 5, title: 'Pelopor Makassar', icon: '🏙️', description: 'Jadi kontributor terbaik', progress: 67, earned: false },
+    { id: 6, title: 'Mentor Hijau', icon: '👨‍🏫', description: 'Ajak 20 orang bergabung', progress: 35, earned: false }
   ];
 
   const menuItems = [
     {
       id: 1,
-      title: 'Riwayat Aktivitas',
-      subtitle: 'Lihat semua kontribusi Anda',
-      icon: '📊',
+      title: 'Riwayat Penanaman',
+      subtitle: 'Lihat semua pohon yang Anda tanam',
+      icon: '🌱',
       color: COLORS.PRIMARY,
       hasArrow: true
     },
     {
       id: 2,
-      title: 'Sertifikat & Badge',
-      subtitle: 'Koleksi pencapaian Anda',
+      title: 'Pencapaian & Badge',
+      subtitle: 'Koleksi penghargaan Anda',
       icon: '🏅',
       color: COLORS.ACCENT,
       hasArrow: true
     },
     {
       id: 3,
-      title: 'Undang Teman',
-      subtitle: 'Ajak teman bergabung',
+      title: 'Undang Warga Makassar',
+      subtitle: 'Ajak keluarga & tetangga',
       icon: '👥',
       color: COLORS.SUCCESS,
       hasArrow: true
     },
     {
       id: 4,
+      title: 'RTH Favorit',
+      subtitle: 'Lokasi yang sering dikunjungi',
+      icon: '📍',
+      color: '#e67e22',
+      hasArrow: true
+    },
+    {
+      id: 5,
       title: 'Pengaturan',
-      subtitle: 'Kelola akun dan preferensi',
+      subtitle: 'Kelola akun dan notifikasi',
       icon: '⚙️',
       color: COLORS.SECONDARY,
       hasArrow: true
@@ -107,8 +117,36 @@ export default function ProfileScreen() {
     </View>
   );
 
+  const handleMenuPress = (menuId) => {
+    switch (menuId) {
+      case 1:
+        // Navigate to tree planting history
+        break;
+      case 2:
+        // Navigate to achievements
+        break;
+      case 3:
+        // Navigate to invite friends
+        break;
+      case 4:
+        // Navigate to favorite RTH locations
+        navigation.navigate('Map');
+        break;
+      case 5:
+        // Navigate to settings
+        break;
+      default:
+        break;
+    }
+  };
+
   const renderMenuItem = (item) => (
-    <TouchableOpacity key={item.id} style={styles.menuItem} activeOpacity={0.7}>
+    <TouchableOpacity
+      key={item.id}
+      style={styles.menuItem}
+      activeOpacity={0.7}
+      onPress={() => handleMenuPress(item.id)}
+    >
       <View style={[styles.menuIcon, { backgroundColor: item.color + '15' }]}>
         <Text style={styles.menuIconText}>{item.icon}</Text>
       </View>
@@ -150,7 +188,7 @@ export default function ProfileScreen() {
             {/* Profile Info */}
             <View style={styles.profileSection}>
               <View style={styles.profileImageContainer}>
-                <Image source={{ uri: userData.profileImage }} style={styles.profileImage} />
+                <Image source={userData.profileImage} style={styles.profileImage} />
                 <View style={styles.badgeContainer}>
                   <Text style={styles.badgeIcon}>{userData.badge}</Text>
                 </View>

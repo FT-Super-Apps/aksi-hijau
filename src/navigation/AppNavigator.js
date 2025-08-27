@@ -3,6 +3,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import EcoUnityWelcome from '../screens/Welcome';
 import MainTabNavigator from './MainTabNavigator';
+import MapScreen from '../screens/MapScreen';
+import TreeDetailScreen from '../screens/TreeDetailScreen';
+import StatisticsScreen from '../screens/StatisticsScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
+import PhotoPreviewScreen from '../screens/PhotoPreviewScreen';
 
 const Stack = createStackNavigator();
 
@@ -32,6 +37,11 @@ export default function AppNavigator() {
       >
         <Stack.Screen name="Welcome" component={EcoUnityWelcome} />
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+        <Stack.Screen name="Map" component={MapScreen} />
+        <Stack.Screen name="TreeDetail" component={TreeDetailScreen} />
+        <Stack.Screen name="Statistics" component={StatisticsScreen} />
+        <Stack.Screen name="Leaderboard" component={LeaderboardScreen} />
+        <Stack.Screen name="PhotoPreview" component={PhotoPreviewScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

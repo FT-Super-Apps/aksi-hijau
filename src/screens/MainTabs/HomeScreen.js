@@ -70,87 +70,90 @@ export default function HomeScreen() {
     outputRange: [0, -10],
   });
 
-  // Mock data for demonstration
+  // Mock data for demonstration - Updated for Sedekah Hijau Makassar
   const userData = {
-    name: 'Sarah Johnson',
-    profileImage: 'https://via.placeholder.com/100x100/549B79/FFFFFF?text=SJ',
+    name: 'Ahmad Wijaya',
+    profileImage: require('../../../assets/home/avatar.png'),
     level: 'Eco Champion 🏆',
     points: 2850,
-    streak: 12
+    streak: 12,
+    location: 'Makassar',
+    temperature: '27°C',
+    todayTarget: 5
   };
 
   const statsData = [
     {
       id: 1,
-      title: 'Pohon Ditanam',
-      value: '47',
+      title: 'Pohon Saya',
+      value: '23',
       subtitle: 'pohon',
-      icon: '�',
+      icon: '🌱',
       color: COLORS.PRIMARY,
-      progress: 85,
+      progress: 46,
       target: '50'
     },
     {
       id: 2,
-      title: 'CO₂ Diserap',
-      value: '680',
-      subtitle: 'kg',
-      icon: '🌍',
+      title: 'Komunitas Pohon',
+      value: '156',
+      subtitle: 'pohon',
+      icon: '�',
       color: COLORS.ACCENT,
-      progress: 68,
-      target: '1000'
+      progress: 78,
+      target: '200'
     },
     {
       id: 3,
-      title: 'Sampah Didaur',
-      value: '28',
-      subtitle: 'kg',
-      icon: '♻️',
+      title: 'RTH Makassar',
+      value: '11.47',
+      subtitle: '%',
+      icon: '🏞️',
       color: COLORS.SUCCESS,
-      progress: 93,
-      target: '30'
+      progress: 11,
+      target: '100'
     },
     {
       id: 4,
-      title: 'Aksi Selesai',
-      value: '15',
-      subtitle: 'misi',
-      icon: '✨',
+      title: 'CO₂ Diserap',
+      value: '2.3',
+      subtitle: 'ton',
+      icon: '🌍',
       color: COLORS.SECONDARY,
-      progress: 75,
-      target: '20'
+      progress: 23,
+      target: '10'
     }
   ];
 
   const quickActions = [
     {
       id: 1,
-      title: 'Scan QR',
-      subtitle: 'Pohon Baru',
-      icon: '📱',
+      title: 'Tanam Pohon Baru',
+      subtitle: '📷',
+      icon: '🌱',
       color: COLORS.PRIMARY,
       gradient: [COLORS.PRIMARY, COLORS.PRIMARY_DARK]
     },
     {
       id: 2,
-      title: 'Lapor Sampah',
-      subtitle: 'Daur Ulang',
-      icon: '📸',
+      title: 'Lihat Peta RTH',
+      subtitle: '🗺️',
+      icon: '�',
       color: COLORS.ACCENT,
       gradient: [COLORS.ACCENT, COLORS.ACCENT_DARK]
     },
     {
       id: 3,
-      title: 'Edukasi',
-      subtitle: 'Tips Hijau',
-      icon: '🎓',
+      title: 'Statistik Bulanan',
+      subtitle: '📊',
+      icon: '📈',
       color: COLORS.SUCCESS,
       gradient: [COLORS.SUCCESS, COLORS.SUCCESS + 'CC']
     },
     {
       id: 4,
-      title: 'Komunitas',
-      subtitle: 'Forum',
+      title: 'Leaderboard',
+      subtitle: '🏆',
       icon: '👥',
       color: COLORS.SECONDARY,
       gradient: [COLORS.SECONDARY, COLORS.SECONDARY_DARK]
@@ -250,39 +253,17 @@ export default function HomeScreen() {
 
             {/* Enhanced Profile Section with Illustration */}
             <View style={styles.profileSection}>
-              {/* Eco Illustration on the Left */}
-              <View style={styles.illustrationContainer}>
-                <View style={styles.ecoIllustration}>
-                  {/* Home Icon SVG as main illustration */}
-                  <Animated.View
-                    style={[
-                      styles.homeIconContainer,
-                      { transform: [{ scale: scaleAnimation }] }
-                    ]}
-                  >
-                  </Animated.View>
-
-                  <Animated.View
-                    style={[
-                      styles.floatingElements,
-                      { transform: [{ translateY: floatingTransform }] }
-                    ]}
-                  >
-                    <Text style={styles.floatingLeaf1}>🍃</Text>
-                    <Text style={styles.floatingLeaf2}>🌱</Text>
-                    <Text style={styles.floatingLeaf3}>♻️</Text>
-                  </Animated.View>
-                </View>
-              </View>              {/* Profile Info on the Right */}
+              {/* Profile Info on the Right */}
               <View style={styles.profileInfoContainer}>
                 <View style={styles.profileImageContainer}>
-                  <Image source={{ uri: userData.profileImage }} style={styles.profileImage} />
+                  <Image source={userData.profileImage} style={styles.profileImage} />
                   <View style={styles.statusIndicator} />
                 </View>
 
                 <View style={styles.profileInfo}>
-                  <Text style={styles.greeting}>Halo, Eco Hero! 👋</Text>
-                  <Text style={styles.userName}>{userData.name}</Text>
+                  <Text style={styles.greeting}>🌱 Selamat pagi, {userData.name.split(' ')[0]}!</Text>
+                  <Text style={styles.locationWeather}>{userData.location}, {userData.temperature} ☀️</Text>
+                  <Text style={styles.dailyTarget}>Target hari ini: {userData.todayTarget} pohon</Text>
 
                   <View style={styles.userStats}>
                     <View style={styles.levelBadge}>
@@ -410,33 +391,67 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Recent Activity */}
+        {/* Recent Activity - Updated for Sedekah Hijau */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Aktivitas Terbaru 📋</Text>
           <View style={styles.activityCard}>
             <View style={styles.activityItem}>
               <View style={styles.activityIcon}>
-                <Text>🌳</Text>
+                <Text>📸</Text>
               </View>
               <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Pohon ditanam di Taman Kota</Text>
-                <Text style={styles.activityTime}>2 jam yang lalu</Text>
+                <Text style={styles.activityTitle}>Budi menanam Mahoni</Text>
+                <Text style={styles.activityTime}>Taman Kota, 2 jam lalu</Text>
               </View>
-              <Text style={styles.activityPoints}>+25</Text>
+              <Text style={styles.activityPoints}>🌱</Text>
             </View>
 
             <View style={styles.activityDivider} />
 
             <View style={styles.activityItem}>
               <View style={styles.activityIcon}>
-                <Text>♻️</Text>
+                <Text>📸</Text>
               </View>
               <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Sampah plastik didaur ulang</Text>
-                <Text style={styles.activityTime}>1 hari yang lalu</Text>
+                <Text style={styles.activityTitle}>Sari menanam Mangga</Text>
+                <Text style={styles.activityTime}>Jl. Perintis, 4 jam lalu</Text>
               </View>
-              <Text style={styles.activityPoints}>+15</Text>
+              <Text style={styles.activityPoints}>🌳</Text>
             </View>
+
+            <View style={styles.activityDivider} />
+
+            <View style={styles.activityItem}>
+              <View style={styles.activityIcon}>
+                <Text>🏆</Text>
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>Anda mencapai target minggu!</Text>
+                <Text style={styles.activityTime}>5 pohon telah ditanam</Text>
+              </View>
+              <Text style={styles.activityPoints}>⭐</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Mini Map Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Peta RTH Terdekat 🗺️</Text>
+          <View style={styles.mapCard}>
+            <View style={styles.miniMap}>
+              <Text style={styles.mapPlaceholder}>🗺️ MAP VIEW</Text>
+              <View style={styles.mapPins}>
+                <Text style={styles.mapPin}>📍</Text>
+                <Text style={styles.mapPin}>📍</Text>
+                <Text style={styles.mapPin}>📍</Text>
+                <Text style={styles.mapPin}>📍</Text>
+                <Text style={styles.mapPin}>📍</Text>
+              </View>
+            </View>
+            <Text style={styles.mapInfo}>12 lokasi RTH dalam radius 5km</Text>
+            <TouchableOpacity style={styles.viewMapButton}>
+              <Text style={styles.viewMapText}>Lihat Peta Lengkap</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -662,11 +677,23 @@ export default function HomeScreen() {
     flex: 1,
   },
   greeting: {
+    fontSize: FONT_SIZES.MEDIUM,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    marginBottom: 4,
+  },
+  locationWeather: {
     fontSize: FONT_SIZES.REGULAR,
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
     opacity: 0.9,
     marginBottom: 4,
+  },
+  dailyTarget: {
+    fontSize: FONT_SIZES.REGULAR,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+    marginBottom: SPACING.MARGIN.SM,
   },
   userName: {
     fontSize: FONT_SIZES.H4,
@@ -1089,7 +1116,122 @@ export default function HomeScreen() {
     backgroundColor: COLORS.BORDER,
     marginVertical: SPACING.MARGIN.SM,
   },
+
+  // Map Section Styles
+  mapCard: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 20,
+    padding: SPACING.PADDING.LG,
+    shadowColor: COLORS.BLACK,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  miniMap: {
+    height: 120,
+    backgroundColor: COLORS.BACKGROUND,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    marginBottom: SPACING.MARGIN.MD,
+  },
+  mapPlaceholder: {
+    fontSize: FONT_SIZES.MEDIUM,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
+  mapPins: {
+    position: 'absolute',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: '80%',
+    height: '80%',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  mapPin: {
+    fontSize: 16,
+  },
+  mapInfo: {
+    fontSize: FONT_SIZES.REGULAR,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    textAlign: 'center',
+    marginBottom: SPACING.MARGIN.MD,
+  },
+  viewMapButton: {
+    backgroundColor: COLORS.PRIMARY + '15',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  viewMapText: {
+    fontSize: FONT_SIZES.MEDIUM,
+    color: COLORS.PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+  },
+
   bottomSpacing: {
     height: 80, // Increased spacing for better separation from bottom tabs
+  },
+
+  // Mini Map Styles
+  mapCard: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 20,
+    padding: SPACING.PADDING.LG,
+    shadowColor: COLORS.BLACK,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  miniMap: {
+    height: 120,
+    backgroundColor: COLORS.BACKGROUND,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.MARGIN.MD,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  mapPlaceholder: {
+    fontSize: FONT_SIZES.H5,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    marginBottom: SPACING.MARGIN.SM,
+  },
+  mapPins: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapPin: {
+    position: 'absolute',
+    fontSize: 20,
+  },
+  mapInfo: {
+    fontSize: FONT_SIZES.REGULAR,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    textAlign: 'center',
+    marginBottom: SPACING.MARGIN.MD,
+  },
+  viewMapButton: {
+    backgroundColor: COLORS.PRIMARY + '15',
+    borderRadius: 12,
+    paddingVertical: SPACING.PADDING.SM,
+    alignItems: 'center',
+  },
+  viewMapText: {
+    fontSize: FONT_SIZES.MEDIUM,
+    color: COLORS.PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
   },
 });

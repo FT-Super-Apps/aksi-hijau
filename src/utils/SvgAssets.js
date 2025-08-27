@@ -98,6 +98,59 @@ export const FlowingFern = (props) => {
 };
 
 // Small orange decorative dot
+
+// Home Icon
+export const HomeIcon = (props) => {
+  const svgContent = `<svg width="250" height="273" viewBox="0 0 250 273" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="paint0_linear_103_4" x1="124.969" y1="20.8411" x2="124.969" y2="272.083" gradientUnits="userSpaceOnUse">
+<stop stop-color="#549B79"/>
+<stop offset="1" stop-color="#2F5539"/>
+</linearGradient>
+<linearGradient id="paint1_linear_103_4" x1="27.4365" y1="155.168" x2="222.522" y2="155.168" gradientUnits="userSpaceOnUse">
+<stop stop-color="#6FC191"/>
+<stop offset="1" stop-color="#549B79"/>
+</linearGradient>
+<linearGradient id="paint2_linear_103_4" x1="124.969" y1="78.6416" x2="124.969" y2="272.083" gradientUnits="userSpaceOnUse">
+<stop stop-color="#549B79"/>
+<stop offset="1" stop-color="#2F5539"/>
+</linearGradient>
+<linearGradient id="paint3_linear_103_4" x1="125" y1="145" x2="125" y2="242" gradientUnits="userSpaceOnUse">
+<stop stop-color="#87D1A8"/>
+<stop offset="1" stop-color="#549B79"/>
+</linearGradient>
+<linearGradient id="paint4_linear_103_4" x1="89" y1="183" x2="161" y2="183" gradientUnits="userSpaceOnUse">
+<stop stop-color="#A3E2BD"/>
+<stop offset="1" stop-color="#6FC191"/>
+</linearGradient>
+<mask id="mask0_103_4" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="250" height="273">
+<rect width="250" height="273" fill="#D9D9D9"/>
+</mask>
+</defs>
+<g mask="url(#mask0_103_4)">
+<path d="M125 20.8411L222.522 111.295V272.083H166.871V193.706H83.1286V272.083H27.4365V111.295L125 20.8411Z" fill="url(#paint0_linear_103_4)"/>
+<path d="M27.4365 111.295L125 20.8411L222.522 111.295V198.936L125 108.482L27.4365 198.936V111.295Z" fill="url(#paint1_linear_103_4)"/>
+<path d="M222.522 111.295L125 20.8411V272.083H222.522V111.295Z" fill="url(#paint2_linear_103_4)"/>
+<rect x="83" y="145" width="84" height="97" rx="12" fill="url(#paint3_linear_103_4)"/>
+<circle cx="125" cy="183" r="36" fill="url(#paint4_linear_103_4)"/>
+<path d="M125 20.8411L222.522 111.295H194.839L125 49.5238L55.1607 111.295H27.4365L125 20.8411Z" fill="#87D1A8"/>
+<rect x="166.871" y="111.295" width="27.8258" height="80.3871" fill="#6FC191"/>
+<rect x="55.3032" y="111.295" width="27.8258" height="80.3871" fill="#6FC191"/>
+<path d="M125 20.8411L152.826 48.6667L139.652 61.8411L125 47.1894L110.348 61.8411L97.1742 48.6667L125 20.8411Z" fill="#A3E2BD"/>
+<circle cx="125" cy="183" r="18" fill="#F4F9F6"/>
+<rect x="119" y="177" width="12" height="12" rx="2" fill="#549B79"/>
+<rect x="108" y="193" width="34" height="8" rx="4" fill="#A3E2BD"/>
+<rect x="115" y="207" width="20" height="6" rx="3" fill="#6FC191"/>
+<circle cx="89" cy="165" r="4" fill="#FFE066"/>
+<circle cx="161" cy="165" r="4" fill="#FFE066"/>
+<circle cx="103" cy="225" r="3" fill="#FF8A80"/>
+<circle cx="147" cy="225" r="3" fill="#FF8A80"/>
+<path d="M105 145L125 135L145 145V160H105V145Z" fill="#87D1A8"/>
+<rect x="120" y="148" width="10" height="7" rx="2" fill="#549B79"/>
+</g>
+</svg>`;
+  return <SvgXml xml={svgContent} {...props} />;
+};
 export const OrangeDot = (props) => {
   const svgContent = `<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 2 2" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path id="Vector" d="M0.113809 0.245526C-0.0797004 0.511398 -0.0203463 0.883776 0.245525 1.07729C0.511397 1.27079 0.883779 1.21144 1.07647 0.945567C1.26998 0.679696 1.21144 0.307317 0.944759 0.113808C0.679701 -0.0797009 0.307317 -0.0203453 0.113809 0.245526Z" fill="#ED9200"/>

@@ -8,8 +8,8 @@ import {
   Dimensions,
   Platform,
   ScrollView,
-  Image,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/colors';
 import { SPACING } from '../constants/spacing';

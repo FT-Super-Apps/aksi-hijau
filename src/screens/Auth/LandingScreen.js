@@ -23,7 +23,7 @@ import {
 } from '@expo-google-fonts/kulim-park';
 
 import { Image } from 'expo-image';
-import LoginSvg from '../../login.svg';
+import LoginSvg from '@assets/login.svg';
 
 const { width, height } = Dimensions.get('window');
 

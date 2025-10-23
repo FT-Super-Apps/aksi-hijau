@@ -161,7 +161,17 @@ export default function CameraScreen({ navigation }) {
 
   const renderForm = () => (
     <View style={styles.formContainer}>
-      <Text style={styles.formTitle}>Informasi Penanaman</Text>
+      {/* Header dengan tombol kembali */}
+      <View style={styles.formHeader}>
+        <TouchableOpacity
+          style={styles.backButtonForm}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backIconForm}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.formTitle}>Informasi Penanaman</Text>
+        <View style={styles.headerSpacer} />
+      </View>
 
       <View style={styles.formField}>
         <Text style={styles.fieldLabel}>Jenis Pohon:</Text>
@@ -397,7 +407,37 @@ const styles = StyleSheet.create({
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
     textAlign: 'center',
+    flex: 1,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: SPACING.MARGIN.XL,
+  },
+  backButtonForm: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.WHITE,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: COLORS.BLACK,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  backIconForm: {
+    fontSize: 24,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  headerSpacer: {
+    width: 40,
   },
   formField: {
     marginBottom: SPACING.MARGIN.XL,
@@ -445,6 +485,32 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.SMALL,
     color: COLORS.SUCCESS,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
+  locationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.MARGIN.SM,
+  },
+  refreshLocationButton: {
+    backgroundColor: COLORS.WHITE,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: COLORS.BORDER,
+  },
+  refreshLocationText: {
+    fontSize: FONT_SIZES.SMALL,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
+  coordinatesText: {
+    fontSize: FONT_SIZES.SMALL,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    fontStyle: 'italic',
+    marginTop: SPACING.MARGIN.XS,
   },
   notesInput: {
     backgroundColor: COLORS.WHITE,

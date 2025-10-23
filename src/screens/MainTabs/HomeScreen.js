@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,17 +9,17 @@ import {
   StatusBar,
   Dimensions,
   Platform,
-  Animated
+  Animated,
+  SafeAreaView
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../constants/colors';
 import { SPACING } from '../../constants/spacing';
 import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
-import { HomeIcon } from '../../utils/SvgAssets';
 
 const { width, height } = Dimensions.get('window');
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
   const floatingAnimation = useRef(new Animated.Value(0)).current;
   const scaleAnimation = useRef(new Animated.Value(1)).current;
 
@@ -132,31 +132,53 @@ export default function HomeScreen() {
       subtitle: '📷',
       icon: '🌱',
       color: COLORS.PRIMARY,
-      gradient: [COLORS.PRIMARY, COLORS.PRIMARY_DARK]
+      gradient: [COLORS.PRIMARY, COLORS.PRIMARY_DARK],
+      onPress: () => navigation.navigate('Camera')
     },
     {
       id: 2,
-      title: 'Lihat Peta RTH',
-      subtitle: '🗺️',
-      icon: '�',
+      title: 'Jejak Karbon',
+      subtitle: '🌍',
+      icon: '📊',
       color: COLORS.ACCENT,
-      gradient: [COLORS.ACCENT, COLORS.ACCENT_DARK]
+      gradient: [COLORS.ACCENT, COLORS.ACCENT_DARK],
+      onPress: () => navigation.navigate('CarbonCalculator')
     },
     {
       id: 3,
-      title: 'Statistik Bulanan',
-      subtitle: '📊',
-      icon: '📈',
+      title: 'Belajar & Tantangan',
+      subtitle: '📚',
+      icon: '🎯',
       color: COLORS.SUCCESS,
-      gradient: [COLORS.SUCCESS, COLORS.SUCCESS + 'CC']
+      gradient: [COLORS.SUCCESS, COLORS.SUCCESS + 'CC'],
+      onPress: () => navigation.navigate('LearnChallenge')
     },
     {
       id: 4,
+      title: 'Eco Wallet',
+      subtitle: '💰',
+      icon: '⭐',
+      color: COLORS.WARNING,
+      gradient: [COLORS.WARNING, COLORS.WARNING + 'DD'],
+      onPress: () => navigation.navigate('EcoWallet')
+    },
+    {
+      id: 5,
+      title: 'Feed Komunitas',
+      subtitle: '👥',
+      icon: '💬',
+      color: COLORS.INFO,
+      gradient: [COLORS.INFO, COLORS.INFO + 'DD'],
+      onPress: () => navigation.navigate('CommunityFeed')
+    },
+    {
+      id: 6,
       title: 'Leaderboard',
       subtitle: '🏆',
-      icon: '👥',
+      icon: '🥇',
       color: COLORS.SECONDARY,
-      gradient: [COLORS.SECONDARY, COLORS.SECONDARY_DARK]
+      gradient: [COLORS.SECONDARY, COLORS.SECONDARY_DARK],
+      onPress: () => navigation.navigate('Leaderboard')
     }
   ];
 
@@ -210,6 +232,7 @@ export default function HomeScreen() {
       key={action.id}
       style={styles.quickActionCard}
       activeOpacity={0.8}
+      onPress={action.onPress}
     >
       <LinearGradient
         colors={action.gradient}
@@ -294,11 +317,24 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
       >
+        {/* Quick Actions Grid */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Aksi Cepat ⚡</Text>
+          </View>
+          <View style={styles.quickActionsGrid}>
+            {quickActions.map(renderQuickAction)}
+          </View>
+        </View>
+
         {/* Modern Stats Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Progres Kontribusi 📈</Text>
-            <TouchableOpacity style={styles.seeAllButton}>
+            <TouchableOpacity
+              style={styles.seeAllButton}
+              onPress={() => navigation.navigate('Statistics')}
+            >
               <Text style={styles.seeAllText}>Lihat Semua</Text>
             </TouchableOpacity>
           </View>
@@ -449,7 +485,10 @@ export default function HomeScreen() {
               </View>
             </View>
             <Text style={styles.mapInfo}>12 lokasi RTH dalam radius 5km</Text>
-            <TouchableOpacity style={styles.viewMapButton}>
+            <TouchableOpacity
+              style={styles.viewMapButton}
+              onPress={() => navigation.navigate('Map')}
+            >
               <Text style={styles.viewMapText}>Lihat Peta Lengkap</Text>
             </TouchableOpacity>
           </View>
@@ -884,6 +923,11 @@ export default function HomeScreen() {
     marginBottom: SPACING.MARGIN.MD,
     borderRadius: 20,
     overflow: 'hidden',
+    shadowColor: COLORS.BLACK,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   quickActionGradient: {
     padding: SPACING.PADDING.LG,

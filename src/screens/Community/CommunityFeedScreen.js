@@ -1,3 +1,8 @@
+/**
+ * CommunityFeedScreen - Feed aktivitas komunitas
+ * @module screens/Community/CommunityFeedScreen
+ */
+
 import React, { useState } from 'react';
 import {
   View,
@@ -8,247 +13,141 @@ import {
   Dimensions,
   Platform,
   ScrollView,
-  TextInput,
+  RefreshControl,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../constants/colors';
-import { SPACING } from '../constants/spacing';
-import { FONT_FAMILIES, FONT_SIZES } from '../constants/typography';
+import { COLORS } from '../../constants/colors';
+import { SPACING } from '../../constants/spacing';
+import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
+import { MOCK_COMMUNITY_FEED, MOCK_COMMUNITY_TREES } from '../../store/mockData';
+import { useUserStore } from '../../store/userStore';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function CommunityFeedScreen({ navigation }) {
-  const [likedPosts, setLikedPosts] = useState([1, 3]);
-  const [commentText, setCommentText] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedTab, setSelectedTab] = useState('feed');
+  const { profile } = useUserStore();
 
-  const feedPosts = [
-    {
-      id: 1,
-      user: {
-        name: 'Budi Santoso',
-        avatar: 'https://via.placeholder.com/50x50/4CAF50/FFFFFF?text=BS',
-        level: 'Eco Champion',
-      },
-      timestamp: '2 jam lalu',
-      content: 'Hari ini berhasil menanam 5 pohon Mahoni di Taman Hasanuddin bersama komunitas! 🌳 Semoga tumbuh besar dan sehat. Mari kita jaga bumi kita bersama-sama! 💚',
-      images: [
-        'https://via.placeholder.com/400x300/4CAF50/FFFFFF?text=Tree+1',
-        'https://via.placeholder.com/400x300/45a049/FFFFFF?text=Tree+2',
-      ],
-      likes: 45,
-      comments: 12,
-      shares: 3,
-      type: 'planting',
-      location: 'Taman Hasanuddin, Makassar',
-      trees: 5,
-      co2: '108 kg',
-    },
-    {
-      id: 2,
-      user: {
-        name: 'Sari Indah',
-        avatar: 'https://via.placeholder.com/50x50/2196F3/FFFFFF?text=SI',
-        level: 'Green Warrior',
-      },
-      timestamp: '5 jam lalu',
-      content: 'Challenge Zero Waste Weekend selesai! 🎉 Berhasil mengurangi sampah plastik hingga 80%. Tips: bawa tas belanja sendiri dan gunakan botol minum isi ulang.',
-      images: [],
-      likes: 67,
-      comments: 23,
-      shares: 15,
-      type: 'challenge',
-      challengeName: 'Zero Waste Weekend',
-      achievement: '80% reduction',
-    },
-    {
-      id: 3,
-      user: {
-        name: 'Ahmad Wijaya',
-        avatar: 'https://via.placeholder.com/50x50/549B79/FFFFFF?text=AW',
-        level: 'Eco Champion',
-      },
-      timestamp: '1 hari lalu',
-      content: 'Yeay! Baru saja dapat badge "Tree Planter" 🌱 Alhamdulillah sudah 25 pohon tertanam. Target selanjutnya: 50 pohon! Siapa mau ikut challenge?',
-      images: [
-        'https://via.placeholder.com/400x300/FF9800/FFFFFF?text=Badge',
-      ],
-      likes: 89,
-      comments: 34,
-      shares: 8,
-      type: 'achievement',
-      badge: 'Tree Planter',
-      totalTrees: 25,
-    },
-    {
-      id: 4,
-      user: {
-        name: 'Green Community',
-        avatar: 'https://via.placeholder.com/50x50/9C27B0/FFFFFF?text=GC',
-        level: 'Komunitas',
-      },
-      timestamp: '2 hari lalu',
-      content: 'Event Penanaman Massal di Pantai Losari - Minggu depan! 🌴\n\nYuk gabung:\n📍 Pantai Losari\n📅 Minggu, 1 September 2024\n⏰ 07:00 - 11:00 WITA\n\nBibit disediakan, bawa semangat aja! 💪',
-      images: [
-        'https://via.placeholder.com/400x200/00BCD4/FFFFFF?text=Event+Poster',
-      ],
-      likes: 234,
-      comments: 78,
-      shares: 45,
-      type: 'event',
-      eventTitle: 'Penanaman Massal Pantai Losari',
-      participants: 156,
-      targetTrees: 500,
-    },
-  ];
-
-  const toggleLike = (postId) => {
-    if (likedPosts.includes(postId)) {
-      setLikedPosts(likedPosts.filter(id => id !== postId));
-    } else {
-      setLikedPosts([...likedPosts, postId]);
-    }
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // Simulate refresh
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setRefreshing(false);
   };
 
-  const getPostTypeInfo = (post) => {
-    const types = {
-      planting: { icon: '🌱', label: 'Menanam Pohon', color: COLORS.PRIMARY },
-      challenge: { icon: '🎯', label: 'Challenge', color: COLORS.ACCENT },
-      achievement: { icon: '🏆', label: 'Pencapaian', color: COLORS.SUCCESS },
-      event: { icon: '📅', label: 'Event', color: COLORS.SECONDARY },
-    };
-    return types[post.type] || types.planting;
+  const formatTimeAgo = (dateString) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `${diffDays} hari lalu`;
+    if (diffHours > 0) return `${diffHours} jam lalu`;
+    return 'Baru saja';
   };
 
-  const renderPost = (post) => {
-    const isLiked = likedPosts.includes(post.id);
-    const typeInfo = getPostTypeInfo(post);
+  const getInitials = (name) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
 
-    return (
-      <View key={post.id} style={styles.postCard}>
-        {/* Post Header */}
-        <View style={styles.postHeader}>
-          <Image source={{ uri: post.user.avatar }} style={styles.userAvatar} />
-
-          <View style={styles.userInfo}>
-            <View style={styles.userNameRow}>
-              <Text style={styles.userName}>{post.user.name}</Text>
-              <View style={[styles.levelBadge, { backgroundColor: typeInfo.color + '15' }]}>
-                <Text style={[styles.levelText, { color: typeInfo.color }]}>
-                  {post.user.level}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.postMeta}>
-              <Text style={styles.timestamp}>{post.timestamp}</Text>
-              {post.location && (
-                <>
-                  <Text style={styles.metaDivider}>•</Text>
-                  <Text style={styles.location}>📍 {post.location}</Text>
-                </>
-              )}
-            </View>
-          </View>
-
-          <TouchableOpacity style={styles.moreButton}>
-            <Text style={styles.moreIcon}>⋯</Text>
-          </TouchableOpacity>
+  const renderFeedItem = (item) => (
+    <View key={item.id} style={styles.feedItem}>
+      {/* User Header */}
+      <View style={styles.feedHeader}>
+        <View style={styles.avatarPlaceholder}>
+          <Text style={styles.avatarInitials}>{getInitials(item.userName)}</Text>
         </View>
-
-        {/* Post Type Badge */}
-        <View style={[styles.typeBadge, { backgroundColor: typeInfo.color + '10' }]}>
-          <Text style={styles.typeBadgeIcon}>{typeInfo.icon}</Text>
-          <Text style={[styles.typeBadgeText, { color: typeInfo.color }]}>
-            {typeInfo.label}
-          </Text>
+        <View style={styles.feedUserInfo}>
+          <Text style={styles.feedUserName}>{item.userName}</Text>
+          <Text style={styles.feedTime}>{formatTimeAgo(item.createdAt)}</Text>
         </View>
-
-        {/* Post Content */}
-        <Text style={styles.postContent}>{post.content}</Text>
-
-        {/* Post Images */}
-        {post.images.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.imagesScroll}
-          >
-            {post.images.map((image, index) => (
-              <Image key={index} source={{ uri: image }} style={styles.postImage} />
-            ))}
-          </ScrollView>
-        )}
-
-        {/* Post Stats */}
-        {post.type === 'planting' && (
-          <View style={styles.statsCard}>
-            <View style={styles.statItem}>
-              <Text style={styles.statIcon}>🌳</Text>
-              <Text style={styles.statText}>{post.trees} pohon</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statIcon}>🌍</Text>
-              <Text style={styles.statText}>{post.co2} CO₂</Text>
-            </View>
+        {item.type === 'achievement' && (
+          <View style={styles.achievementBadge}>
+            <Text style={styles.achievementBadgeText}>🏆</Text>
           </View>
         )}
-
-        {post.type === 'event' && (
-          <View style={styles.eventCard}>
-            <LinearGradient
-              colors={[typeInfo.color + '10', typeInfo.color + '05']}
-              style={styles.eventGradient}
-            >
-              <View style={styles.eventRow}>
-                <View style={styles.eventStat}>
-                  <Text style={styles.eventStatValue}>{post.participants}</Text>
-                  <Text style={styles.eventStatLabel}>Peserta</Text>
-                </View>
-                <View style={styles.eventStat}>
-                  <Text style={styles.eventStatValue}>{post.targetTrees}</Text>
-                  <Text style={styles.eventStatLabel}>Target Pohon</Text>
-                </View>
-              </View>
-              <TouchableOpacity style={styles.joinEventButton}>
-                <Text style={styles.joinEventText}>📝 Daftar Sekarang</Text>
-              </TouchableOpacity>
-            </LinearGradient>
-          </View>
-        )}
-
-        {/* Post Actions */}
-        <View style={styles.postActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => toggleLike(post.id)}
-          >
-            <Text style={[styles.actionIcon, isLiked && { color: COLORS.ERROR }]}>
-              {isLiked ? '❤️' : '🤍'}
-            </Text>
-            <Text style={[styles.actionText, isLiked && { color: COLORS.ERROR }]}>
-              {post.likes + (isLiked ? 1 : 0)}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton}>
-            <Text style={styles.actionIcon}>💬</Text>
-            <Text style={styles.actionText}>{post.comments}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton}>
-            <Text style={styles.actionIcon}>🔄</Text>
-            <Text style={styles.actionText}>{post.shares}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton}>
-            <Text style={styles.actionIcon}>📤</Text>
-            <Text style={styles.actionText}>Share</Text>
-          </TouchableOpacity>
-        </View>
       </View>
-    );
-  };
+
+      {/* Content */}
+      <Text style={styles.feedContent}>{item.content}</Text>
+
+      {/* Type-specific content */}
+      {item.type === 'tree_planted' && (
+        <View style={styles.treeCard}>
+          <LinearGradient
+            colors={[COLORS.PRIMARY + '15', COLORS.PRIMARY + '05']}
+            style={styles.treeCardGradient}
+          >
+            <Text style={styles.treeIcon}>🌳</Text>
+            <View style={styles.treeInfo}>
+              <Text style={styles.treeName}>{item.treeName}</Text>
+              <Text style={styles.treeLocation}>📍 {item.location}</Text>
+            </View>
+          </LinearGradient>
+        </View>
+      )}
+
+      {item.type === 'event' && (
+        <View style={styles.eventCard}>
+          <LinearGradient
+            colors={[COLORS.WARNING + '20', COLORS.WARNING + '05']}
+            style={styles.eventCardGradient}
+          >
+            <Text style={styles.eventIcon}>📅</Text>
+            <View style={styles.eventInfo}>
+              <Text style={styles.eventDate}>
+                {new Date(item.eventDate).toLocaleDateString('id-ID', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                })}
+              </Text>
+              <Text style={styles.eventLocation}>📍 {item.eventLocation}</Text>
+            </View>
+          </LinearGradient>
+        </View>
+      )}
+
+      {/* Actions */}
+      <View style={styles.feedActions}>
+        <TouchableOpacity style={styles.actionButton}>
+          <Text style={[styles.actionIcon, item.isLiked && styles.actionIconActive]}>
+            {item.isLiked ? '❤️' : '🤍'}
+          </Text>
+          <Text style={styles.actionCount}>{item.likes}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton}>
+          <Text style={styles.actionIcon}>💬</Text>
+          <Text style={styles.actionCount}>{item.comments}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.actionButton}>
+          <Text style={styles.actionIcon}>📤</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderTreeActivity = (tree) => (
+    <View key={tree.id} style={styles.activityItem}>
+      <View style={styles.avatarPlaceholder}>
+        <Text style={styles.avatarInitials}>{getInitials(tree.userName)}</Text>
+      </View>
+      <View style={styles.activityContent}>
+        <Text style={styles.activityText}>
+          <Text style={styles.activityUserName}>{tree.userName}</Text>
+          {' menanam '}
+          <Text style={styles.activityTreeName}>{tree.typeName}</Text>
+        </Text>
+        <Text style={styles.activityLocation}>📍 {tree.location.name}</Text>
+        <Text style={styles.activityTime}>{formatTimeAgo(tree.createdAt)}</Text>
+      </View>
+      <Text style={styles.activityTreeIcon}>🌳</Text>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
@@ -267,49 +166,75 @@ export default function CommunityFeedScreen({ navigation }) {
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Feed Komunitas</Text>
+          <Text style={styles.headerTitle}>Komunitas</Text>
 
-          <TouchableOpacity style={styles.notificationButton}>
-            <View style={styles.notificationDot} />
-            <Text style={styles.notificationIcon}>🔔</Text>
+          <TouchableOpacity style={styles.notifButton}>
+            <Text style={styles.notifIcon}>🔔</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tabButton, selectedTab === 'feed' && styles.tabButtonActive]}
+            onPress={() => setSelectedTab('feed')}
+          >
+            <Text style={[styles.tabText, selectedTab === 'feed' && styles.tabTextActive]}>
+              Feed
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabButton, selectedTab === 'activity' && styles.tabButtonActive]}
+            onPress={() => setSelectedTab('activity')}
+          >
+            <Text style={[styles.tabText, selectedTab === 'activity' && styles.tabTextActive]}>
+              Aktivitas
+            </Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
 
-      {/* Create Post Button */}
-      <View style={styles.createPostSection}>
-        <TouchableOpacity style={styles.createPostButton}>
-          <Image
-            source={{ uri: 'https://via.placeholder.com/40x40/549B79/FFFFFF?text=U' }}
-            style={styles.createPostAvatar}
-          />
-          <Text style={styles.createPostText}>Bagikan aksi hijau Anda...</Text>
-          <View style={styles.createPostIcon}>
-            <Text style={styles.createPostEmoji}>📸</Text>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* Feed */}
+      {/* Content */}
       <ScrollView
-        style={styles.feed}
+        style={styles.content}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.feedContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.PRIMARY]}
+          />
+        }
       >
-        {feedPosts.map(renderPost)}
+        {selectedTab === 'feed' ? (
+          <>
+            {/* Create Post Card */}
+            <TouchableOpacity style={styles.createPostCard}>
+              <View style={styles.createPostAvatar}>
+                <Text style={styles.createPostAvatarText}>
+                  {profile.name ? getInitials(profile.name) : '👤'}
+                </Text>
+              </View>
+              <Text style={styles.createPostText}>Bagikan aksi hijaumu...</Text>
+              <Text style={styles.createPostIcon}>📷</Text>
+            </TouchableOpacity>
+
+            {/* Feed Items */}
+            {MOCK_COMMUNITY_FEED.map(renderFeedItem)}
+          </>
+        ) : (
+          <>
+            <View style={styles.activityHeader}>
+              <Text style={styles.activityTitle}>Aktivitas Terbaru</Text>
+              <Text style={styles.activitySubtitle}>Pohon yang ditanam komunitas</Text>
+            </View>
+
+            {MOCK_COMMUNITY_TREES.map(renderTreeActivity)}
+          </>
+        )}
 
         <View style={styles.bottomSpacing} />
       </ScrollView>
-
-      {/* Floating Action Button */}
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('Camera')}>
-        <LinearGradient
-          colors={[COLORS.PRIMARY, COLORS.PRIMARY_DARK]}
-          style={styles.fabGradient}
-        >
-          <Text style={styles.fabIcon}>🌱</Text>
-        </LinearGradient>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -320,16 +245,17 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BACKGROUND,
   },
 
-  // Header Styles
+  // Header
   header: {
     paddingTop: Platform.OS === 'ios' ? 60 : 45,
     paddingHorizontal: SPACING.PADDING.XL,
-    paddingBottom: SPACING.PADDING.LG,
+    paddingBottom: SPACING.PADDING.MD,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: SPACING.MARGIN.MD,
   },
   backButton: {
     width: 40,
@@ -348,309 +274,293 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.H4,
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
-    flex: 1,
-    textAlign: 'center',
   },
-  notificationButton: {
+  notifButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: COLORS.WHITE + '20',
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
   },
-  notificationDot: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: COLORS.ERROR,
-    zIndex: 1,
-  },
-  notificationIcon: {
+  notifIcon: {
     fontSize: 20,
   },
 
-  // Create Post Section
-  createPostSection: {
-    backgroundColor: COLORS.WHITE,
-    padding: SPACING.PADDING.LG,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.BORDER,
+  // Tabs
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.WHITE + '15',
+    borderRadius: 25,
+    padding: 4,
   },
-  createPostButton: {
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 22,
+    alignItems: 'center',
+  },
+  tabButtonActive: {
+    backgroundColor: COLORS.WHITE,
+  },
+  tabText: {
+    fontSize: FONT_SIZES.REGULAR,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+  },
+  tabTextActive: {
+    color: COLORS.PRIMARY,
+  },
+
+  // Content
+  content: {
+    flex: 1,
+    padding: SPACING.PADDING.LG,
+  },
+
+  // Create Post
+  createPostCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.BACKGROUND,
-    borderRadius: 24,
-    padding: SPACING.PADDING.MD,
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    padding: SPACING.PADDING.LG,
+    marginBottom: SPACING.MARGIN.LG,
+    shadowColor: COLORS.BLACK,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   createPostAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.PRIMARY,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: SPACING.MARGIN.MD,
+  },
+  createPostAvatarText: {
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    fontSize: FONT_SIZES.REGULAR,
   },
   createPostText: {
     flex: 1,
     fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.TEXT_SECONDARY,
+    color: COLORS.TEXT_DISABLED,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
   },
   createPostIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.PRIMARY + '15',
+    fontSize: 24,
+  },
+
+  // Feed Item
+  feedItem: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    padding: SPACING.PADDING.LG,
+    marginBottom: SPACING.MARGIN.LG,
+    shadowColor: COLORS.BLACK,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  feedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.MARGIN.MD,
+  },
+  avatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: COLORS.PRIMARY,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  createPostEmoji: {
-    fontSize: 18,
-  },
-
-  // Feed
-  feed: {
-    flex: 1,
-  },
-  feedContent: {
-    paddingTop: SPACING.PADDING.MD,
-  },
-
-  // Post Card
-  postCard: {
-    backgroundColor: COLORS.WHITE,
-    marginBottom: SPACING.MARGIN.MD,
-    paddingTop: SPACING.PADDING.LG,
-  },
-  postHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.PADDING.LG,
-    marginBottom: SPACING.MARGIN.MD,
-  },
-  userAvatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
     marginRight: SPACING.MARGIN.MD,
   },
-  userInfo: {
+  avatarInitials: {
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    fontSize: FONT_SIZES.REGULAR,
+  },
+  feedUserInfo: {
     flex: 1,
   },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  userName: {
+  feedUserName: {
     fontSize: FONT_SIZES.MEDIUM,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginRight: SPACING.MARGIN.SM,
   },
-  levelBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  levelText: {
-    fontSize: FONT_SIZES.TINY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-  },
-  postMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timestamp: {
+  feedTime: {
     fontSize: FONT_SIZES.SMALL,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
   },
-  metaDivider: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.TEXT_DISABLED,
-    marginHorizontal: 6,
-  },
-  location: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-  },
-  moreButton: {
-    padding: 8,
-  },
-  moreIcon: {
-    fontSize: 20,
-    color: COLORS.TEXT_SECONDARY,
-  },
-
-  // Type Badge
-  typeBadge: {
-    flexDirection: 'row',
+  achievementBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.WARNING + '20',
+    justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginHorizontal: SPACING.PADDING.LG,
-    marginBottom: SPACING.MARGIN.MD,
   },
-  typeBadgeIcon: {
-    fontSize: 14,
-    marginRight: 4,
+  achievementBadgeText: {
+    fontSize: 16,
   },
-  typeBadgeText: {
-    fontSize: FONT_SIZES.SMALL,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-  },
-
-  // Post Content
-  postContent: {
+  feedContent: {
     fontSize: FONT_SIZES.REGULAR,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
     lineHeight: 22,
-    paddingHorizontal: SPACING.PADDING.LG,
     marginBottom: SPACING.MARGIN.MD,
   },
 
-  // Images
-  imagesScroll: {
+  // Tree Card
+  treeCard: {
     marginBottom: SPACING.MARGIN.MD,
-  },
-  postImage: {
-    width: width * 0.8,
-    height: 240,
     borderRadius: 12,
-    marginLeft: SPACING.PADDING.LG,
-    marginRight: SPACING.MARGIN.SM,
+    overflow: 'hidden',
   },
-
-  // Stats Card
-  statsCard: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.PRIMARY + '05',
-    marginHorizontal: SPACING.PADDING.LG,
-    borderRadius: 12,
-    padding: SPACING.PADDING.MD,
-    marginBottom: SPACING.MARGIN.MD,
-  },
-  statItem: {
-    flex: 1,
+  treeCardGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    padding: SPACING.PADDING.MD,
   },
-  statIcon: {
-    fontSize: 16,
-    marginRight: 6,
+  treeIcon: {
+    fontSize: 32,
+    marginRight: SPACING.MARGIN.MD,
   },
-  statText: {
+  treeInfo: {
+    flex: 1,
+  },
+  treeName: {
     fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.PRIMARY,
+    color: COLORS.PRIMARY_DARK,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
-  statDivider: {
-    width: 1,
-    backgroundColor: COLORS.BORDER,
-    marginHorizontal: SPACING.MARGIN.MD,
+  treeLocation: {
+    fontSize: FONT_SIZES.SMALL,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    marginTop: 2,
   },
 
   // Event Card
   eventCard: {
-    marginHorizontal: SPACING.PADDING.LG,
+    marginBottom: SPACING.MARGIN.MD,
     borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: SPACING.MARGIN.MD,
   },
-  eventGradient: {
-    padding: SPACING.PADDING.LG,
-  },
-  eventRow: {
+  eventCardGradient: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: SPACING.MARGIN.MD,
-  },
-  eventStat: {
     alignItems: 'center',
+    padding: SPACING.PADDING.MD,
   },
-  eventStatValue: {
-    fontSize: FONT_SIZES.H4,
-    color: COLORS.SECONDARY,
+  eventIcon: {
+    fontSize: 32,
+    marginRight: SPACING.MARGIN.MD,
+  },
+  eventInfo: {
+    flex: 1,
+  },
+  eventDate: {
+    fontSize: FONT_SIZES.MEDIUM,
+    color: COLORS.WARNING_DARK,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginBottom: 4,
   },
-  eventStatLabel: {
+  eventLocation: {
     fontSize: FONT_SIZES.SMALL,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
-  },
-  joinEventButton: {
-    backgroundColor: COLORS.SECONDARY,
-    borderRadius: 12,
-    paddingVertical: SPACING.PADDING.MD,
-    alignItems: 'center',
-  },
-  joinEventText: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    marginTop: 2,
   },
 
-  // Post Actions
-  postActions: {
+  // Actions
+  feedActions: {
     flexDirection: 'row',
-    paddingHorizontal: SPACING.PADDING.LG,
-    paddingVertical: SPACING.PADDING.MD,
     borderTopWidth: 1,
     borderTopColor: COLORS.BORDER,
+    paddingTop: SPACING.PADDING.MD,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
+    marginRight: SPACING.MARGIN.XL,
   },
   actionIcon: {
     fontSize: 20,
-    marginRight: 6,
+    marginRight: 4,
   },
-  actionText: {
+  actionIconActive: {
+    transform: [{ scale: 1.1 }],
+  },
+  actionCount: {
     fontSize: FONT_SIZES.SMALL,
     color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
 
-  // FAB
-  fab: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    borderRadius: 32,
-    overflow: 'hidden',
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  // Activity
+  activityHeader: {
+    marginBottom: SPACING.MARGIN.LG,
   },
-  fabGradient: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: 'center',
+  activityTitle: {
+    fontSize: FONT_SIZES.H5,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  activitySubtitle: {
+    fontSize: FONT_SIZES.SMALL,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    marginTop: 4,
+  },
+  activityItem: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 12,
+    padding: SPACING.PADDING.MD,
+    marginBottom: SPACING.MARGIN.MD,
   },
-  fabIcon: {
-    fontSize: 32,
+  activityContent: {
+    flex: 1,
+    marginLeft: SPACING.MARGIN.SM,
+  },
+  activityText: {
+    fontSize: FONT_SIZES.REGULAR,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+  },
+  activityUserName: {
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  activityTreeName: {
+    color: COLORS.PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  activityLocation: {
+    fontSize: FONT_SIZES.SMALL,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    marginTop: 2,
+  },
+  activityTime: {
+    fontSize: FONT_SIZES.TINY,
+    color: COLORS.TEXT_DISABLED,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    marginTop: 2,
+  },
+  activityTreeIcon: {
+    fontSize: 28,
+    marginLeft: SPACING.MARGIN.SM,
   },
 
   bottomSpacing: {
     height: 80,
   },
 });
-

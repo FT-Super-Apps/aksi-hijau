@@ -1,5 +1,5 @@
 /**
- * Community Screens
+ * Community Screens Index
  * @module screens/Community
  */
 

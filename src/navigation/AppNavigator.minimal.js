@@ -17,7 +17,7 @@ export default function AppNavigator() {
         }}
       >
         <Stack.Screen name="Landing" component={LandingScreen} />
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack  .Screen name="Onboarding" component={OnboardingScreen} />
         {/* Main tab navigator used after onboarding */}
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
       </Stack.Navigator>

@@ -1,4 +1,9 @@
-import React, { useState } from 'react';
+/**
+ * Profile Screen - Halaman profil pengguna dengan integrasi store
+ * @module screens/MainTabs/ProfileScreen
+ */
+
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,143 +14,171 @@ import {
   StatusBar,
   Dimensions,
   Platform,
-  Switch
+  Switch,
+  Alert,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../constants/colors';
 import { SPACING } from '../../constants/spacing';
 import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
+import { useAuthStore } from '../../store/authStore';
+import { useUserStore } from '../../store/userStore';
+import { useTreeStore } from '../../store/treeStore';
+import { useAchievementStore, ACHIEVEMENTS } from '../../store/achievementStore';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function ProfileScreen({ navigation }) {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
+  // Store hooks
+  const { user, logout } = useAuthStore();
+  const { profile, stats, settings, updateSettings, resetUser } = useUserStore();
+  const { myTrees } = useTreeStore();
+  const { getAchievementDetails, initializeDailyQuests, getDailyQuestStatus } = useAchievementStore();
 
-  // Mock user data - Updated for Ahmad Wijaya in Makassar
-  const userData = {
-    name: 'Ahmad Wijaya',
-    email: 'ahmad.wijaya@sedekah-hijau.id',
-    profileImage: require('../../../assets/home/avatar.png'),
-    level: 'Pelopor Hijau',
-    badge: '�',
-    joinDate: 'Bergabung sejak Februari 2024',
-    location: 'Makassar, Sulawesi Selatan',
-    totalPoints: 3247,
-    rank: 8,
-    plantsGrown: 89,
-    co2Saved: 1247,
-    wasteRecycled: 45
+  const [notificationsEnabled, setNotificationsEnabled] = useState(settings.notifications);
+  const [darkModeEnabled, setDarkModeEnabled] = useState(settings.darkMode);
+
+  useEffect(() => {
+    initializeDailyQuests();
+  }, []);
+
+  const achievements = getAchievementDetails();
+  const dailyQuests = getDailyQuestStatus();
+
+  // Handle logout
+  const handleLogout = () => {
+    Alert.alert(
+      'Keluar dari Akun',
+      'Apakah Anda yakin ingin keluar?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        {
+          text: 'Keluar',
+          style: 'destructive',
+          onPress: () => {
+            logout();
+            resetUser();
+          },
+        },
+      ]
+    );
   };
 
-  const achievements = [
-    { id: 1, title: 'Penjaga Hutan', icon: '🌳', description: 'Tanam 50 pohon di RTH', progress: 100, earned: true },
-    { id: 2, title: 'Warior Hijau', icon: '⚔️', description: 'Selesaikan 75 misi lingkungan', progress: 89, earned: true },
-    { id: 3, title: 'Master Karbon', icon: '🥇', description: 'Hemat 1000kg CO₂', progress: 124, earned: true },
-    { id: 4, title: 'Raja Daur Ulang', icon: '♻️', description: 'Daur ulang 50kg sampah', progress: 90, earned: true },
-    { id: 5, title: 'Pelopor Makassar', icon: '🏙️', description: 'Jadi kontributor terbaik', progress: 67, earned: false },
-    { id: 6, title: 'Mentor Hijau', icon: '👨‍🏫', description: 'Ajak 20 orang bergabung', progress: 35, earned: false }
-  ];
+  // Handle settings toggle
+  const handleNotificationToggle = (value) => {
+    setNotificationsEnabled(value);
+    updateSettings({ notifications: value });
+  };
 
+  const handleDarkModeToggle = (value) => {
+    setDarkModeEnabled(value);
+    updateSettings({ darkMode: value });
+  };
+
+  // Menu items
   const menuItems = [
     {
       id: 1,
-      title: 'Riwayat Penanaman',
-      subtitle: 'Lihat semua pohon yang Anda tanam',
+      title: 'Pohon Saya',
+      subtitle: `${myTrees.length} pohon terdokumentasi`,
       icon: '🌱',
       color: COLORS.PRIMARY,
-      hasArrow: true
+      onPress: () => navigation.navigate('Statistics'),
     },
     {
       id: 2,
       title: 'Pencapaian & Badge',
-      subtitle: 'Koleksi penghargaan Anda',
+      subtitle: `${achievements.filter(a => a.isUnlocked).length}/${achievements.length} diraih`,
       icon: '🏅',
       color: COLORS.ACCENT,
-      hasArrow: true
+      onPress: () => {},
     },
     {
       id: 3,
-      title: 'Undang Warga Makassar',
-      subtitle: 'Ajak keluarga & tetangga',
+      title: 'Undang Teman',
+      subtitle: 'Ajak teman bergabung',
       icon: '👥',
       color: COLORS.SUCCESS,
-      hasArrow: true
+      onPress: () => {},
     },
     {
       id: 4,
-      title: 'RTH Favorit',
-      subtitle: 'Lokasi yang sering dikunjungi',
+      title: 'Lokasi RTH',
+      subtitle: 'Lihat peta lokasi',
       icon: '📍',
       color: '#e67e22',
-      hasArrow: true
+      onPress: () => navigation.navigate('Map'),
     },
     {
       id: 5,
-      title: 'Pengaturan',
-      subtitle: 'Kelola akun dan notifikasi',
-      icon: '⚙️',
-      color: COLORS.SECONDARY,
-      hasArrow: true
-    }
+      title: 'Eco Wallet',
+      subtitle: `${stats.totalPoints} poin tersedia`,
+      icon: '💰',
+      color: COLORS.WARNING,
+      onPress: () => navigation.navigate('EcoWallet'),
+    },
   ];
 
-  const renderAchievement = (achievement) => (
-    <View key={achievement.id} style={styles.achievementCard}>
+  const renderAchievement = ({ item }) => (
+    <View style={styles.achievementCard}>
       <LinearGradient
-        colors={achievement.earned ? ['#4CAF50', '#45a049'] : [COLORS.GRAY_200, COLORS.GRAY_100]}
+        colors={item.isUnlocked ? [COLORS.SUCCESS, COLORS.SUCCESS + 'CC'] : [COLORS.GRAY_200, COLORS.GRAY_100]}
         style={styles.achievementGradient}
       >
-        <Text style={[styles.achievementIcon, { opacity: achievement.earned ? 1 : 0.5 }]}>
-          {achievement.icon}
+        <View style={[styles.achievementIconContainer, { opacity: item.isUnlocked ? 1 : 0.5 }]}>
+          <Text style={styles.achievementIcon}>{item.icon}</Text>
+        </View>
+        <Text style={[styles.achievementTitle, { color: item.isUnlocked ? COLORS.WHITE : COLORS.TEXT_SECONDARY }]}>
+          {item.name}
         </Text>
-        <Text style={[styles.achievementTitle, { color: achievement.earned ? COLORS.WHITE : COLORS.TEXT_SECONDARY }]}>
-          {achievement.title}
-        </Text>
-        <Text style={[styles.achievementDescription, { color: achievement.earned ? COLORS.WHITE : COLORS.TEXT_DISABLED }]}>
-          {achievement.description}
-        </Text>
-        {!achievement.earned && (
+        {!item.isUnlocked && (
           <View style={styles.achievementProgress}>
-            <View style={styles.achievementProgressBar}>
-              <View style={[styles.achievementProgressFill, { width: `${achievement.progress}%` }]} />
+            <View style={styles.progressBar}>
+              <View 
+                style={[
+                  styles.progressFill, 
+                  { width: `${Math.min((item.progress / item.requirement.count) * 100, 100)}%` }
+                ]} 
+              />
             </View>
-            <Text style={styles.achievementProgressText}>{achievement.progress}%</Text>
+            <Text style={styles.progressText}>
+              {item.progress}/{item.requirement.count}
+            </Text>
+          </View>
+        )}
+        {item.isUnlocked && item.isNew && (
+          <View style={styles.newBadge}>
+            <Text style={styles.newBadgeText}>BARU!</Text>
           </View>
         )}
       </LinearGradient>
     </View>
   );
 
-  const handleMenuPress = (menuId) => {
-    switch (menuId) {
-      case 1:
-        // Navigate to tree planting history
-        break;
-      case 2:
-        // Navigate to achievements
-        break;
-      case 3:
-        // Navigate to invite friends
-        break;
-      case 4:
-        // Navigate to favorite RTH locations
-        navigation.navigate('Map');
-        break;
-      case 5:
-        // Navigate to settings
-        break;
-      default:
-        break;
-    }
-  };
+  const renderDailyQuest = (quest, index) => (
+    <View key={quest.id} style={styles.questItem}>
+      <View style={styles.questInfo}>
+        <Text style={styles.questIcon}>{quest.icon}</Text>
+        <View style={styles.questText}>
+          <Text style={styles.questTitle}>{quest.name}</Text>
+          <Text style={styles.questProgress}>
+            {quest.progress}/{quest.requirement.count}
+          </Text>
+        </View>
+      </View>
+      <View style={[styles.questStatus, quest.isCompleted && styles.questCompleted]}>
+        <Text style={styles.questStatusText}>{quest.isCompleted ? '✓' : `+${quest.points}`}</Text>
+      </View>
+    </View>
+  );
 
   const renderMenuItem = (item) => (
     <TouchableOpacity
       key={item.id}
       style={styles.menuItem}
       activeOpacity={0.7}
-      onPress={() => handleMenuPress(item.id)}
+      onPress={item.onPress}
     >
       <View style={[styles.menuIcon, { backgroundColor: item.color + '15' }]}>
         <Text style={styles.menuIconText}>{item.icon}</Text>
@@ -154,9 +187,7 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.menuTitle}>{item.title}</Text>
         <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
       </View>
-      {item.hasArrow && (
-        <Text style={styles.menuArrow}>›</Text>
-      )}
+      <Text style={styles.menuArrow}>›</Text>
     </TouchableOpacity>
   );
 
@@ -164,7 +195,7 @@ export default function ProfileScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.PRIMARY} translucent />
 
-      {/* Enhanced Header */}
+      {/* Header */}
       <View style={styles.headerContainer}>
         <LinearGradient
           colors={[COLORS.PRIMARY, COLORS.PRIMARY_DARK, COLORS.PRIMARY_DARK]}
@@ -172,12 +203,10 @@ export default function ProfileScreen({ navigation }) {
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
-          {/* Decorative Elements */}
           <View style={styles.decorativeCircle1} />
           <View style={styles.decorativeCircle2} />
 
           <View style={styles.headerContent}>
-            {/* Top Bar */}
             <View style={styles.topBar}>
               <Text style={styles.headerTitle}>Profil Saya</Text>
               <TouchableOpacity style={styles.editButton}>
@@ -185,29 +214,28 @@ export default function ProfileScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {/* Profile Info */}
             <View style={styles.profileSection}>
               <View style={styles.profileImageContainer}>
-                <Image source={userData.profileImage} style={styles.profileImage} />
-                <View style={styles.badgeContainer}>
-                  <Text style={styles.badgeIcon}>{userData.badge}</Text>
+                <Image 
+                  source={profile.avatar || require('../../../assets/home/avatar.png')} 
+                  style={styles.profileImage} 
+                />
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelNumber}>{stats.level}</Text>
                 </View>
               </View>
 
               <View style={styles.profileInfo}>
-                <Text style={styles.userName}>{userData.name}</Text>
-                <Text style={styles.userEmail}>{userData.email}</Text>
+                <Text style={styles.userName}>{profile.name || user?.name || 'Pengguna'}</Text>
+                <Text style={styles.userEmail}>{profile.email || user?.email}</Text>
                 <View style={styles.levelContainer}>
-                  <Text style={styles.userLevel}>{userData.level}</Text>
+                  <Text style={styles.userLevel}>{stats.levelName}</Text>
                 </View>
-                <Text style={styles.joinDate}>{userData.joinDate}</Text>
-                <Text style={styles.location}>📍 {userData.location}</Text>
+                <Text style={styles.location}>📍 {profile.location}</Text>
               </View>
             </View>
           </View>
         </LinearGradient>
-
-        {/* Curved Bottom */}
         <View style={styles.curvedBottom} />
       </View>
 
@@ -219,21 +247,21 @@ export default function ProfileScreen({ navigation }) {
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{userData.totalPoints.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>Total Poin</Text>
             <Text style={styles.statIcon}>⭐</Text>
+            <Text style={styles.statValue}>{stats.totalPoints.toLocaleString()}</Text>
+            <Text style={styles.statLabel}>Total Poin</Text>
           </View>
 
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>#{userData.rank}</Text>
-            <Text style={styles.statLabel}>Peringkat</Text>
-            <Text style={styles.statIcon}>🏆</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{userData.plantsGrown}</Text>
-            <Text style={styles.statLabel}>Pohon</Text>
             <Text style={styles.statIcon}>🌳</Text>
+            <Text style={styles.statValue}>{stats.totalTrees}</Text>
+            <Text style={styles.statLabel}>Pohon</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <Text style={styles.statIcon}>🔥</Text>
+            <Text style={styles.statValue}>{stats.streak}</Text>
+            <Text style={styles.statLabel}>Streak</Text>
           </View>
         </View>
 
@@ -242,66 +270,75 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Dampak Kontribusi 🌍</Text>
           <View style={styles.impactCard}>
             <LinearGradient
-              colors={[COLORS.PRIMARY + '10', COLORS.BACKGROUND]}
+              colors={[COLORS.PRIMARY + '15', COLORS.BACKGROUND]}
               style={styles.impactGradient}
             >
               <View style={styles.impactRow}>
                 <View style={styles.impactItem}>
                   <Text style={styles.impactIcon}>🌱</Text>
-                  <Text style={styles.impactValue}>{userData.plantsGrown}</Text>
+                  <Text style={styles.impactValue}>{stats.totalTrees}</Text>
                   <Text style={styles.impactLabel}>Pohon Ditanam</Text>
                 </View>
                 <View style={styles.impactItem}>
                   <Text style={styles.impactIcon}>🌍</Text>
-                  <Text style={styles.impactValue}>{userData.co2Saved}kg</Text>
+                  <Text style={styles.impactValue}>{stats.co2Absorbed.toFixed(1)}kg</Text>
                   <Text style={styles.impactLabel}>CO₂ Diserap</Text>
                 </View>
                 <View style={styles.impactItem}>
-                  <Text style={styles.impactIcon}>♻️</Text>
-                  <Text style={styles.impactValue}>{userData.wasteRecycled}kg</Text>
-                  <Text style={styles.impactLabel}>Sampah Didaur</Text>
+                  <Text style={styles.impactIcon}>🎯</Text>
+                  <Text style={styles.impactValue}>{stats.todayProgress}/{stats.todayTarget}</Text>
+                  <Text style={styles.impactLabel}>Target Hari Ini</Text>
                 </View>
               </View>
             </LinearGradient>
           </View>
         </View>
 
+        {/* Daily Quests */}
+        {dailyQuests.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Misi Harian 🎯</Text>
+            <View style={styles.questCard}>
+              {dailyQuests.map(renderDailyQuest)}
+            </View>
+          </View>
+        )}
+
         {/* Achievements */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Pencapaian 🏅</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>Lihat Semua</Text>
-            </TouchableOpacity>
+            <Text style={styles.achievementCount}>
+              {achievements.filter(a => a.isUnlocked).length}/{achievements.length}
+            </Text>
           </View>
-          <ScrollView
+          <FlatList
+            data={achievements.slice(0, 6)}
+            renderItem={renderAchievement}
+            keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.achievementsScrollContainer}
-          >
-            {achievements.map(renderAchievement)}
-          </ScrollView>
+            contentContainerStyle={styles.achievementsList}
+          />
         </View>
 
         {/* Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Pengaturan ⚙️</Text>
-
-          {/* Toggle Settings */}
           <View style={styles.settingsCard}>
             <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
                 <Text style={styles.settingIcon}>🔔</Text>
                 <View style={styles.settingText}>
                   <Text style={styles.settingTitle}>Notifikasi</Text>
-                  <Text style={styles.settingSubtitle}>Terima pemberitahuan aktivitas</Text>
+                  <Text style={styles.settingSubtitle}>Terima pemberitahuan</Text>
                 </View>
               </View>
               <Switch
                 trackColor={{ false: COLORS.GRAY_300, true: COLORS.PRIMARY + '50' }}
                 thumbColor={notificationsEnabled ? COLORS.PRIMARY : COLORS.GRAY_500}
                 value={notificationsEnabled}
-                onValueChange={setNotificationsEnabled}
+                onValueChange={handleNotificationToggle}
               />
             </View>
 
@@ -312,20 +349,20 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.settingIcon}>🌙</Text>
                 <View style={styles.settingText}>
                   <Text style={styles.settingTitle}>Mode Gelap</Text>
-                  <Text style={styles.settingSubtitle}>Tampilan tema gelap</Text>
+                  <Text style={styles.settingSubtitle}>Tema gelap (Coming Soon)</Text>
                 </View>
               </View>
               <Switch
                 trackColor={{ false: COLORS.GRAY_300, true: COLORS.PRIMARY + '50' }}
                 thumbColor={darkModeEnabled ? COLORS.PRIMARY : COLORS.GRAY_500}
                 value={darkModeEnabled}
-                onValueChange={setDarkModeEnabled}
+                onValueChange={handleDarkModeToggle}
               />
             </View>
           </View>
         </View>
 
-        {/* Menu Items */}
+        {/* Menu */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Menu 📱</Text>
           <View style={styles.menuContainer}>
@@ -335,7 +372,11 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Logout Button */}
         <View style={styles.section}>
-          <TouchableOpacity style={styles.logoutButton} activeOpacity={0.8}>
+          <TouchableOpacity 
+            style={styles.logoutButton} 
+            activeOpacity={0.8}
+            onPress={handleLogout}
+          >
             <LinearGradient
               colors={[COLORS.ERROR, COLORS.ERROR + 'DD']}
               style={styles.logoutGradient}
@@ -346,7 +387,6 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        {/* Bottom Spacing for Tab Navigation */}
         <View style={styles.bottomSpacing} />
       </ScrollView>
     </View>
@@ -358,8 +398,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
   },
-
-  // Header Styles (similar to HomeScreen)
   headerContainer: {
     position: 'relative',
   },
@@ -420,40 +458,41 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.MARGIN.LG,
   },
   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 5,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
     borderColor: COLORS.WHITE,
   },
-  badgeContainer: {
+  levelBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    bottom: -5,
+    right: -5,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: COLORS.ACCENT,
     borderWidth: 3,
     borderColor: COLORS.WHITE,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  badgeIcon: {
-    fontSize: 18,
+  levelNumber: {
+    fontSize: 14,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    color: COLORS.WHITE,
   },
   profileInfo: {
     alignItems: 'center',
   },
   userName: {
-    fontSize: FONT_SIZES.H3,
+    fontSize: FONT_SIZES.H4,
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
     marginBottom: 4,
-    textAlign: 'center',
   },
   userEmail: {
-    fontSize: FONT_SIZES.REGULAR,
+    fontSize: FONT_SIZES.SMALL,
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
     opacity: 0.8,
@@ -462,27 +501,20 @@ const styles = StyleSheet.create({
   levelContainer: {
     backgroundColor: COLORS.WHITE + '20',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 20,
     marginBottom: SPACING.MARGIN.SM,
   },
   userLevel: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-  },
-  joinDate: {
     fontSize: FONT_SIZES.SMALL,
     color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    opacity: 0.7,
-    marginBottom: 4,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
   },
   location: {
     fontSize: FONT_SIZES.SMALL,
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    opacity: 0.7,
+    opacity: 0.8,
   },
   curvedBottom: {
     position: 'absolute',
@@ -494,8 +526,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
   },
-
-  // Content Styles
   content: {
     flex: 1,
     marginTop: -20,
@@ -503,40 +533,39 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingTop: 30,
     paddingHorizontal: SPACING.PADDING.XL,
-    paddingBottom: 100, // Extra space for bottom tab navigation
+    paddingBottom: 100,
   },
   section: {
-    marginBottom: SPACING.MARGIN.XXXL,
+    marginBottom: SPACING.MARGIN.XL,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.MARGIN.LG,
+    marginBottom: SPACING.MARGIN.MD,
   },
   sectionTitle: {
-    fontSize: FONT_SIZES.H5,
+    fontSize: FONT_SIZES.MEDIUM,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
+    marginBottom: SPACING.MARGIN.MD,
   },
-  seeAllText: {
+  achievementCount: {
     fontSize: FONT_SIZES.SMALL,
     color: COLORS.PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
   },
-
-  // Stats Cards
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: SPACING.MARGIN.XXXL,
+    marginBottom: SPACING.MARGIN.XL,
+    gap: 8,
   },
   statCard: {
     flex: 1,
     backgroundColor: COLORS.WHITE,
-    borderRadius: 20,
-    padding: SPACING.PADDING.LG,
-    marginHorizontal: 4,
+    borderRadius: 16,
+    padding: SPACING.PADDING.MD,
     alignItems: 'center',
     shadowColor: COLORS.BLACK,
     shadowOffset: { width: 0, height: 2 },
@@ -544,23 +573,20 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
+  statIcon: {
+    fontSize: 24,
+    marginBottom: SPACING.MARGIN.XS,
+  },
   statValue: {
-    fontSize: FONT_SIZES.H4,
+    fontSize: FONT_SIZES.H5,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginBottom: 4,
   },
   statLabel: {
-    fontSize: FONT_SIZES.SMALL,
+    fontSize: FONT_SIZES.TINY,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-    marginBottom: SPACING.MARGIN.SM,
   },
-  statIcon: {
-    fontSize: 20,
-  },
-
-  // Impact Card
   impactCard: {
     borderRadius: 20,
     overflow: 'hidden',
@@ -571,7 +597,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   impactGradient: {
-    padding: SPACING.PADDING.XL,
+    padding: SPACING.PADDING.LG,
   },
   impactRow: {
     flexDirection: 'row',
@@ -582,81 +608,140 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   impactIcon: {
-    fontSize: 32,
+    fontSize: 28,
     marginBottom: SPACING.MARGIN.SM,
   },
   impactValue: {
-    fontSize: FONT_SIZES.H4,
+    fontSize: FONT_SIZES.MEDIUM,
     color: COLORS.PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginBottom: 4,
+    marginBottom: 2,
   },
   impactLabel: {
-    fontSize: FONT_SIZES.SMALL,
+    fontSize: FONT_SIZES.TINY,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
     textAlign: 'center',
   },
-
-  // Achievements
-  achievementsScrollContainer: {
+  questCard: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    padding: SPACING.PADDING.MD,
+    shadowColor: COLORS.BLACK,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  questItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.PADDING.SM,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.BORDER,
+  },
+  questInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  questIcon: {
+    fontSize: 24,
+    marginRight: SPACING.MARGIN.MD,
+  },
+  questText: {
+    flex: 1,
+  },
+  questTitle: {
+    fontSize: FONT_SIZES.REGULAR,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
+  questProgress: {
+    fontSize: FONT_SIZES.SMALL,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+  },
+  questStatus: {
+    backgroundColor: COLORS.PRIMARY + '15',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  questCompleted: {
+    backgroundColor: COLORS.SUCCESS,
+  },
+  questStatusText: {
+    fontSize: FONT_SIZES.SMALL,
+    color: COLORS.PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+  },
+  achievementsList: {
     paddingRight: SPACING.PADDING.XL,
   },
   achievementCard: {
-    width: width * 0.4,
-    marginRight: SPACING.MARGIN.LG,
+    width: width * 0.35,
+    marginRight: SPACING.MARGIN.MD,
     borderRadius: 16,
     overflow: 'hidden',
   },
   achievementGradient: {
-    padding: SPACING.PADDING.LG,
+    padding: SPACING.PADDING.MD,
     alignItems: 'center',
-    minHeight: 140,
+    minHeight: 120,
     justifyContent: 'center',
   },
-  achievementIcon: {
-    fontSize: 32,
+  achievementIconContainer: {
     marginBottom: SPACING.MARGIN.SM,
+  },
+  achievementIcon: {
+    fontSize: 28,
   },
   achievementTitle: {
-    fontSize: FONT_SIZES.REGULAR,
+    fontSize: FONT_SIZES.SMALL,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
     textAlign: 'center',
-    marginBottom: 4,
-  },
-  achievementDescription: {
-    fontSize: FONT_SIZES.SMALL,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    textAlign: 'center',
-    marginBottom: SPACING.MARGIN.SM,
   },
   achievementProgress: {
     width: '100%',
-    alignItems: 'center',
+    marginTop: SPACING.MARGIN.SM,
   },
-  achievementProgressBar: {
-    width: '100%',
+  progressBar: {
     height: 4,
     backgroundColor: COLORS.WHITE + '30',
     borderRadius: 2,
     marginBottom: 4,
   },
-  achievementProgressFill: {
+  progressFill: {
     height: '100%',
     backgroundColor: COLORS.PRIMARY,
     borderRadius: 2,
   },
-  achievementProgressText: {
+  progressText: {
     fontSize: FONT_SIZES.TINY,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    textAlign: 'center',
   },
-
-  // Settings
+  newBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: COLORS.ACCENT,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  newBadgeText: {
+    fontSize: 8,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
   settingsCard: {
     backgroundColor: COLORS.WHITE,
-    borderRadius: 20,
-    padding: SPACING.PADDING.LG,
+    borderRadius: 16,
+    padding: SPACING.PADDING.MD,
     shadowColor: COLORS.BLACK,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
@@ -675,8 +760,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   settingIcon: {
-    fontSize: 24,
-    marginRight: SPACING.MARGIN.LG,
+    fontSize: 20,
+    marginRight: SPACING.MARGIN.MD,
   },
   settingText: {
     flex: 1,
@@ -684,24 +769,21 @@ const styles = StyleSheet.create({
   settingTitle: {
     fontSize: FONT_SIZES.REGULAR,
     color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-    marginBottom: 2,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
   settingSubtitle: {
-    fontSize: FONT_SIZES.SMALL,
+    fontSize: FONT_SIZES.TINY,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
   },
   settingDivider: {
     height: 1,
     backgroundColor: COLORS.BORDER,
-    marginVertical: SPACING.MARGIN.SM,
+    marginVertical: SPACING.MARGIN.XS,
   },
-
-  // Menu
   menuContainer: {
     backgroundColor: COLORS.WHITE,
-    borderRadius: 20,
+    borderRadius: 16,
     padding: SPACING.PADDING.SM,
     shadowColor: COLORS.BLACK,
     shadowOffset: { width: 0, height: 2 },
@@ -712,20 +794,19 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.PADDING.LG,
-    borderRadius: 16,
-    marginBottom: SPACING.MARGIN.XS,
+    padding: SPACING.PADDING.MD,
+    borderRadius: 12,
   },
   menuIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.MARGIN.LG,
+    marginRight: SPACING.MARGIN.MD,
   },
   menuIconText: {
-    fontSize: 24,
+    fontSize: 20,
   },
   menuContent: {
     flex: 1,
@@ -733,33 +814,29 @@ const styles = StyleSheet.create({
   menuTitle: {
     fontSize: FONT_SIZES.REGULAR,
     color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-    marginBottom: 2,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
   menuSubtitle: {
-    fontSize: FONT_SIZES.SMALL,
+    fontSize: FONT_SIZES.TINY,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
   },
   menuArrow: {
     fontSize: 20,
     color: COLORS.TEXT_DISABLED,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
-
-  // Logout Button
   logoutButton: {
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
   },
   logoutGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.PADDING.LG,
+    paddingVertical: SPACING.PADDING.MD,
   },
   logoutIcon: {
-    fontSize: 20,
+    fontSize: 18,
     marginRight: SPACING.MARGIN.SM,
   },
   logoutText: {
@@ -768,6 +845,6 @@ const styles = StyleSheet.create({
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
   bottomSpacing: {
-    height: 80, // Increased spacing for better separation from bottom tabs
+    height: 80,
   },
 });

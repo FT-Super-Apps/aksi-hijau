@@ -11,24 +11,67 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../constants/colors';
-import { SPACING } from '../constants/spacing';
-import { FONT_FAMILIES, FONT_SIZES } from '../constants/typography';
+import { COLORS } from '../../constants/colors';
+import { SPACING } from '../../constants/spacing';
+import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
+import { useTreeStore, TREE_TYPES } from '../../store/treeStore';
 
 const { width, height } = Dimensions.get('window');
 
 export default function TreeDetailScreen({ navigation, route }) {
+  const { treeId } = route.params || {};
+  const { getTreeById, waterTree } = useTreeStore();
   const [selectedTab, setSelectedTab] = useState('info');
 
-  // Mock tree data - would come from route params in real app
-  const treeData = {
+  // Get tree from store or use mock data
+  const storedTree = getTreeById(treeId);
+  const treeType = storedTree ? TREE_TYPES.find(t => t.id === storedTree.type) : null;
+
+  // Calculate age
+  const calculateAge = (createdAt) => {
+    if (!createdAt) return '0 hari';
+    const created = new Date(createdAt);
+    const now = new Date();
+    const diffDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+    if (diffDays < 30) return `${diffDays} hari`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} bulan`;
+    return `${Math.floor(diffDays / 365)} tahun`;
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  const treeData = storedTree ? {
+    id: storedTree.id,
+    type: storedTree.typeName || treeType?.name || 'Pohon',
+    scientificName: treeType?.id || '',
+    plantedDate: formatDate(storedTree.createdAt),
+    planter: 'Anda',
+    location: storedTree.location?.name || 'Lokasi tidak diketahui',
+    image: storedTree.photos?.[0]?.uri || null,
+    healthStatus: storedTree.status === 'healthy' ? 90 : storedTree.status === 'needs_care' ? 60 : 80,
+    lastCareDate: formatDate(storedTree.lastWatered),
+    watering: storedTree.lastWatered ? 'Terakhir disiram' : 'Belum disiram',
+    condition: storedTree.status === 'healthy' ? 'Baik' : storedTree.status === 'needs_care' ? 'Perlu Perhatian' : 'Tumbuh',
+    height: '-',
+    age: calculateAge(storedTree.createdAt),
+    co2Absorbed: `${((treeType?.co2PerYear || 21.77) * 0.1).toFixed(1)} kg`,
+    oxygenProduced: `${((treeType?.co2PerYear || 21.77) * 0.1 * 0.73).toFixed(1)} kg`,
+    notes: storedTree.notes || ''
+  } : {
     id: 1,
     type: 'Mahoni',
     scientificName: 'Swietenia mahagoni',
     plantedDate: '15 Agustus 2024',
     planter: 'Ahmad Wijaya',
     location: 'Taman Hasanuddin',
-    image: 'https://via.placeholder.com/400x300/4CAF50/FFFFFF?text=Mahoni+Tree',
+    image: null,
     healthStatus: 80,
     lastCareDate: '20 Agustus 2024',
     watering: 'Rutin',

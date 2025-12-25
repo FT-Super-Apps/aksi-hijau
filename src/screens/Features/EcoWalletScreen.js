@@ -11,135 +11,75 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../constants/colors';
-import { SPACING } from '../constants/spacing';
-import { FONT_FAMILIES, FONT_SIZES } from '../constants/typography';
+import { COLORS } from '../../constants/colors';
+import { SPACING } from '../../constants/spacing';
+import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
+import { MOCK_WALLET_TRANSACTIONS, MOCK_REWARDS } from '../../store/mockData';
+import { useUserStore } from '../../store/userStore';
+import { useAchievementStore, ACHIEVEMENTS } from '../../store/achievementStore';
 
 const { width, height } = Dimensions.get('window');
 
 export default function EcoWalletScreen({ navigation }) {
   const [selectedTab, setSelectedTab] = useState('rewards');
+  
+  // Get data from stores
+  const { stats } = useUserStore();
+  const { getAchievementDetails } = useAchievementStore();
+  const achievements = getAchievementDetails();
+
+  // Calculate points to next level
+  const levelPoints = [0, 100, 300, 600, 1000, 2000, 5000, 10000];
+  const nextLevelPoints = levelPoints[stats.level] || 10000;
+  const pointsToNextLevel = Math.max(nextLevelPoints - stats.totalPoints, 0);
 
   const walletData = {
-    totalPoints: 3247,
-    pointsThisMonth: 580,
-    level: 'Eco Champion',
-    nextLevel: 'Green Master',
-    pointsToNextLevel: 753,
+    totalPoints: stats.totalPoints,
+    pointsThisMonth: 580, // Mock for now
+    level: stats.levelName.replace(/ [🌱🌿🍀⚔️🏆🌳👑🌍]/g, '').trim(),
+    nextLevel: stats.level < 8 ? 'Level ' + (stats.level + 1) : 'Max Level',
+    pointsToNextLevel: pointsToNextLevel,
   };
 
-  const pointsHistory = [
-    {
-      id: 1,
-      title: 'Tanam Mahoni di Taman Hasanuddin',
-      points: 50,
-      type: 'earn',
-      date: '2024-08-25',
-      icon: '🌱',
-    },
-    {
-      id: 2,
-      title: 'Selesaikan Challenge: Zero Waste Weekend',
-      points: 300,
-      type: 'earn',
-      date: '2024-08-24',
-      icon: '♻️',
-    },
-    {
-      id: 3,
-      title: 'Tukar Voucher Grab',
-      points: -500,
-      type: 'spend',
-      date: '2024-08-23',
-      icon: '🎫',
-    },
-    {
-      id: 4,
-      title: 'Ajak 3 teman bergabung',
-      points: 150,
-      type: 'earn',
-      date: '2024-08-22',
-      icon: '👥',
-    },
-    {
-      id: 5,
-      title: 'Selesaikan Quiz: Jejak Karbon',
-      points: 100,
-      type: 'earn',
-      date: '2024-08-21',
-      icon: '📝',
-    },
-  ];
+  // Use mock data for transactions
+  const pointsHistory = MOCK_WALLET_TRANSACTIONS.map(txn => ({
+    id: txn.id,
+    title: txn.description,
+    points: txn.amount,
+    type: txn.type === 'earn' ? 'earn' : 'spend',
+    date: new Date(txn.date).toLocaleDateString('id-ID'),
+    icon: txn.icon,
+  }));
 
-  const rewards = [
-    {
-      id: 1,
-      title: 'Voucher Grab Rp 50.000',
-      points: 500,
-      stock: 25,
-      category: 'Transport',
-      image: 'https://via.placeholder.com/120x120/00A550/FFFFFF?text=Grab',
-      partner: 'Grab',
-    },
-    {
-      id: 2,
-      title: '10 Bibit Pohon Gratis',
-      points: 800,
-      stock: 15,
-      category: 'Planting',
-      image: 'https://via.placeholder.com/120x120/4CAF50/FFFFFF?text=Bibit',
-      partner: 'Kebun Bibit',
-    },
-    {
-      id: 3,
-      title: 'E-Voucher Tokopedia Rp 100.000',
-      points: 1000,
-      stock: 10,
-      category: 'Shopping',
-      image: 'https://via.placeholder.com/120x120/42B549/FFFFFF?text=Tokped',
-      partner: 'Tokopedia',
-    },
-    {
-      id: 4,
-      title: 'Tumbler Eksklusif Aksi Hijau',
-      points: 600,
-      stock: 30,
-      category: 'Merchandise',
-      image: 'https://via.placeholder.com/120x120/2196F3/FFFFFF?text=Tumbler',
-      partner: 'Aksi Hijau',
-    },
-    {
-      id: 5,
-      title: 'Sertifikat Digital Kontributor',
-      points: 200,
-      stock: 999,
-      category: 'Certificate',
-      image: 'https://via.placeholder.com/120x120/FF9800/FFFFFF?text=Cert',
-      partner: 'Aksi Hijau',
-    },
-    {
-      id: 6,
-      title: 'Kaos Eco-Friendly Limited Edition',
-      points: 750,
-      stock: 20,
-      category: 'Merchandise',
-      image: 'https://via.placeholder.com/120x120/9C27B0/FFFFFF?text=Shirt',
-      partner: 'Aksi Hijau',
-    },
-  ];
+  // Use mock data for rewards
+  const rewards = MOCK_REWARDS.map(reward => ({
+    id: reward.id,
+    title: reward.name,
+    points: reward.points,
+    stock: reward.stock,
+    category: reward.partner,
+    image: null,
+    partner: reward.partner,
+    icon: reward.icon,
+  }));
 
-  const badges = [
-    { id: 1, name: 'Tree Planter', icon: '🌱', earned: true },
-    { id: 2, name: 'Eco Warrior', icon: '⚔️', earned: true },
-    { id: 3, name: 'Green Master', icon: '🥇', earned: false },
-    { id: 4, name: 'Carbon Saver', icon: '🌍', earned: true },
-    { id: 5, name: 'Waste Fighter', icon: '♻️', earned: true },
-    { id: 6, name: 'Community Leader', icon: '👑', earned: false },
-  ];
+  // Get badges from achievements
+  const badges = achievements.slice(0, 6).map(achievement => ({
+    id: achievement.id,
+    name: achievement.name,
+    icon: achievement.icon,
+    earned: achievement.isUnlocked,
+  }));
 
   const renderRewardCard = (reward) => (
     <TouchableOpacity key={reward.id} style={styles.rewardCard} activeOpacity={0.8}>
-      <Image source={{ uri: reward.image }} style={styles.rewardImage} />
+      {reward.image ? (
+        <Image source={{ uri: reward.image }} style={styles.rewardImage} />
+      ) : (
+        <View style={[styles.rewardImage, styles.rewardIconContainer]}>
+          <Text style={styles.rewardIconText}>{reward.icon}</Text>
+        </View>
+      )}
 
       <View style={styles.rewardContent}>
         <Text style={styles.rewardCategory}>{reward.category}</Text>
@@ -536,6 +476,14 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 12,
     marginRight: SPACING.MARGIN.MD,
+  },
+  rewardIconContainer: {
+    backgroundColor: COLORS.PRIMARY + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rewardIconText: {
+    fontSize: 40,
   },
   rewardContent: {
     flex: 1,

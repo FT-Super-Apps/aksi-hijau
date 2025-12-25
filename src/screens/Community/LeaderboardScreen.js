@@ -11,15 +11,20 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../constants/colors';
-import { SPACING } from '../constants/spacing';
-import { FONT_FAMILIES, FONT_SIZES } from '../constants/typography';
+import { COLORS } from '../../constants/colors';
+import { SPACING } from '../../constants/spacing';
+import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
+import { MOCK_LEADERBOARD } from '../../store/mockData';
+import { useUserStore } from '../../store/userStore';
 
 const { width, height } = Dimensions.get('window');
 
 export default function LeaderboardScreen({ navigation }) {
   const [selectedFilter, setSelectedFilter] = useState('month');
   const [selectedLocation, setSelectedLocation] = useState('makassar');
+  
+  // Get current user data
+  const { stats, profile } = useUserStore();
 
   const timeFilters = [
     { id: 'week', label: 'Minggu Ini' },
@@ -33,59 +38,23 @@ export default function LeaderboardScreen({ navigation }) {
     { id: 'indonesia', label: 'Indonesia' },
   ];
 
-  const leaderboardData = [
-    {
-      id: 1,
-      rank: 1,
-      name: 'Budi Santoso',
-      trees: 156,
-      avatar: 'https://via.placeholder.com/60x60/4CAF50/FFFFFF?text=BS',
-      badge: '🥇',
+  // Transform mock data to leaderboard format
+  const leaderboardData = MOCK_LEADERBOARD.map((user, index) => {
+    const isCurrentUser = user.isCurrentUser;
+    const badges = ['🥇', '🥈', '🥉', '', '', '', '', '', '', ''];
+    
+    return {
+      id: user.userId,
+      rank: user.rank,
+      name: isCurrentUser && profile.name ? profile.name : user.name,
+      trees: isCurrentUser ? stats.totalTrees : user.trees,
+      avatar: null,
+      badge: badges[index] || '',
       location: 'Makassar',
-      streak: 45
-    },
-    {
-      id: 2,
-      rank: 2,
-      name: 'Sari Indah',
-      trees: 143,
-      avatar: 'https://via.placeholder.com/60x60/2196F3/FFFFFF?text=SI',
-      badge: '🥈',
-      location: 'Makassar',
-      streak: 38
-    },
-    {
-      id: 3,
-      rank: 3,
-      name: 'Agus Prasetyo',
-      trees: 128,
-      avatar: 'https://via.placeholder.com/60x60/FF9800/FFFFFF?text=AP',
-      badge: '🥉',
-      location: 'Makassar',
-      streak: 32
-    },
-    {
-      id: 4,
-      rank: 4,
-      name: 'Made Wijaya',
-      trees: 87,
-      avatar: 'https://via.placeholder.com/60x60/9C27B0/FFFFFF?text=MW',
-      badge: '',
-      location: 'Makassar',
-      streak: 21
-    },
-    {
-      id: 15,
-      rank: 15,
-      name: 'Ahmad Wijaya',
-      trees: 23,
-      avatar: 'https://via.placeholder.com/60x60/549B79/FFFFFF?text=AW',
-      badge: '',
-      location: 'Makassar',
-      streak: 12,
-      isCurrentUser: true
-    }
-  ];
+      streak: isCurrentUser ? stats.streak : Math.floor(Math.random() * 30) + 5,
+      isCurrentUser,
+    };
+  });
 
   const communityData = [
     {
@@ -111,6 +80,21 @@ export default function LeaderboardScreen({ navigation }) {
     }
   ];
 
+  const getInitials = (name) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const renderAvatar = (user, size = 60) => {
+    if (user.avatar) {
+      return <Image source={{ uri: user.avatar }} style={[styles.podiumAvatar, { width: size, height: size, borderRadius: size / 2 }]} />;
+    }
+    return (
+      <View style={[styles.avatarPlaceholder, { width: size, height: size, borderRadius: size / 2 }]}>
+        <Text style={[styles.avatarInitials, { fontSize: size / 2.5 }]}>{getInitials(user.name)}</Text>
+      </View>
+    );
+  };
+
   const renderTopThree = () => {
     const topThree = leaderboardData.slice(0, 3);
 
@@ -118,7 +102,7 @@ export default function LeaderboardScreen({ navigation }) {
       <View style={styles.podiumContainer}>
         {/* Second Place */}
         <View style={[styles.podiumPosition, styles.secondPlace]}>
-          <Image source={{ uri: topThree[1].avatar }} style={styles.podiumAvatar} />
+          {renderAvatar(topThree[1], 60)}
           <Text style={styles.podiumBadge}>{topThree[1].badge}</Text>
           <Text style={styles.podiumName}>{topThree[1].name.split(' ')[0]}</Text>
           <Text style={styles.podiumTrees}>{topThree[1].trees} pohon</Text>
@@ -128,7 +112,7 @@ export default function LeaderboardScreen({ navigation }) {
 
         {/* First Place */}
         <View style={[styles.podiumPosition, styles.firstPlace]}>
-          <Image source={{ uri: topThree[0].avatar }} style={styles.podiumAvatar} />
+          {renderAvatar(topThree[0], 60)}
           <Text style={styles.podiumBadge}>{topThree[0].badge}</Text>
           <Text style={styles.podiumName}>{topThree[0].name.split(' ')[0]}</Text>
           <Text style={styles.podiumTrees}>{topThree[0].trees} pohon</Text>
@@ -138,7 +122,7 @@ export default function LeaderboardScreen({ navigation }) {
 
         {/* Third Place */}
         <View style={[styles.podiumPosition, styles.thirdPlace]}>
-          <Image source={{ uri: topThree[2].avatar }} style={styles.podiumAvatar} />
+          {renderAvatar(topThree[2], 60)}
           <Text style={styles.podiumBadge}>{topThree[2].badge}</Text>
           <Text style={styles.podiumName}>{topThree[2].name.split(' ')[0]}</Text>
           <Text style={styles.podiumTrees}>{topThree[2].trees} pohon</Text>
@@ -166,7 +150,13 @@ export default function LeaderboardScreen({ navigation }) {
         </Text>
       </View>
 
-      <Image source={{ uri: user.avatar }} style={styles.userAvatar} />
+      {user.avatar ? (
+        <Image source={{ uri: user.avatar }} style={styles.userAvatar} />
+      ) : (
+        <View style={[styles.userAvatar, styles.avatarPlaceholderSmall]}>
+          <Text style={styles.avatarInitialsSmall}>{getInitials(user.name)}</Text>
+        </View>
+      )}
 
       <View style={styles.userInfo}>
         <View style={styles.userNameContainer}>
@@ -423,6 +413,28 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: COLORS.WHITE,
     marginBottom: 8,
+  },
+  avatarPlaceholder: {
+    backgroundColor: COLORS.PRIMARY,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: COLORS.WHITE,
+    marginBottom: 8,
+  },
+  avatarInitials: {
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  avatarPlaceholderSmall: {
+    backgroundColor: COLORS.PRIMARY,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarInitialsSmall: {
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    fontSize: 16,
   },
   podiumBadge: {
     fontSize: 24,

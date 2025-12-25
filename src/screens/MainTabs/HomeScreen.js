@@ -16,6 +16,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../constants/colors';
 import { SPACING } from '../../constants/spacing';
 import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
+import { useAuthStore } from '../../store/authStore';
+import { useUserStore } from '../../store/userStore';
+import { useTreeStore } from '../../store/treeStore';
+import { useAchievementStore } from '../../store/achievementStore';
 
 const { width, height } = Dimensions.get('window');
 
@@ -23,7 +27,17 @@ export default function HomeScreen({ navigation }) {
   const floatingAnimation = useRef(new Animated.Value(0)).current;
   const scaleAnimation = useRef(new Animated.Value(1)).current;
 
+  // Store hooks
+  const { user } = useAuthStore();
+  const { profile, stats } = useUserStore();
+  const { myTrees, communityTrees, loadCommunityTrees } = useTreeStore();
+  const { initializeDailyQuests, checkAchievements } = useAchievementStore();
+
   useEffect(() => {
+    // Initialize stores
+    initializeDailyQuests();
+    loadCommunityTrees();
+    checkAchievements(stats);
     // Floating animation for the eco elements
     const floatingLoop = Animated.loop(
       Animated.sequence([
@@ -70,37 +84,41 @@ export default function HomeScreen({ navigation }) {
     outputRange: [0, -10],
   });
 
-  // Mock data for demonstration - Updated for Sedekah Hijau Makassar
+  // User data from store (with fallbacks)
   const userData = {
-    name: 'Ahmad Wijaya',
-    profileImage: require('../../../assets/home/avatar.png'),
-    level: 'Eco Champion 🏆',
-    points: 2850,
-    streak: 12,
-    location: 'Makassar',
+    name: profile.name || user?.name || 'Pengguna',
+    profileImage: profile.avatar || require('../../../assets/home/avatar.png'),
+    level: stats.levelName || 'Eco Beginner 🌱',
+    points: stats.totalPoints || 0,
+    streak: stats.streak || 0,
+    location: profile.location || 'Makassar',
     temperature: '27°C',
-    todayTarget: 5
+    todayTarget: stats.todayTarget || 5
   };
+
+  // Calculate progress
+  const treeProgress = Math.min(Math.round((stats.totalTrees / 50) * 100), 100);
+  const communityCount = myTrees.length + communityTrees.length;
 
   const statsData = [
     {
       id: 1,
       title: 'Pohon Saya',
-      value: '23',
+      value: String(stats.totalTrees || 0),
       subtitle: 'pohon',
       icon: '🌱',
       color: COLORS.PRIMARY,
-      progress: 46,
+      progress: treeProgress,
       target: '50'
     },
     {
       id: 2,
       title: 'Komunitas Pohon',
-      value: '156',
+      value: String(communityCount),
       subtitle: 'pohon',
-      icon: '�',
+      icon: '🌳',
       color: COLORS.ACCENT,
-      progress: 78,
+      progress: Math.min(Math.round((communityCount / 200) * 100), 100),
       target: '200'
     },
     {
@@ -116,11 +134,11 @@ export default function HomeScreen({ navigation }) {
     {
       id: 4,
       title: 'CO₂ Diserap',
-      value: '2.3',
+      value: ((stats.co2Absorbed || 0) / 1000).toFixed(2),
       subtitle: 'ton',
       icon: '🌍',
       color: COLORS.SECONDARY,
-      progress: 23,
+      progress: Math.min(Math.round(((stats.co2Absorbed || 0) / 10000) * 100), 100),
       target: '10'
     }
   ];

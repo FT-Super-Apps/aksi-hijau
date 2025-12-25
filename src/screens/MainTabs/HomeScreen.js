@@ -1,5 +1,5 @@
 /**
- * HomeScreen - Modern Dashboard dengan Glassmorphism Design
+ * HomeScreen - Premium Modern Dashboard
  * @module screens/MainTabs/HomeScreen
  */
 
@@ -18,123 +18,141 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, GRADIENT_COLORS, SHADOWS } from '../../constants/colors';
-import { SPACING } from '../../constants/spacing';
 import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
 import { useAuthStore } from '../../store/authStore';
 import { useUserStore } from '../../store/userStore';
 import { useTreeStore } from '../../store/treeStore';
 import { useAchievementStore } from '../../store/achievementStore';
-
-// Components
-import GlassCard from '../../components/atoms/GlassCard';
 import AnimatedPressable from '../../components/atoms/AnimatedPressable';
 import AnimatedCounter from '../../components/atoms/AnimatedCounter';
-import IconBadge from '../../components/atoms/IconBadge';
+import GlassCard from '../../components/atoms/GlassCard';
 
 const { width, height } = Dimensions.get('window');
+const CARD_WIDTH = (width - 52) / 2;
 
 export default function HomeScreen({ navigation }) {
   // Animations
   const scrollY = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
-  const staggerAnims = useRef([...Array(6)].map(() => new Animated.Value(0))).current;
+  const slideAnim = useRef(new Animated.Value(40)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
   
+  // Card animations
+  const cardAnims = useRef([...Array(8)].map(() => ({
+    opacity: new Animated.Value(0),
+    translateY: new Animated.Value(30),
+    scale: new Animated.Value(0.95),
+  }))).current;
+
   // Store hooks
   const { user } = useAuthStore();
   const { profile, stats } = useUserStore();
-  const { myTrees, communityTrees, loadCommunityTrees } = useTreeStore();
+  const { myTrees, loadCommunityTrees } = useTreeStore();
   const { initializeDailyQuests, checkAchievements, getDailyQuestStatus } = useAchievementStore();
 
   const dailyQuests = getDailyQuestStatus();
+  const completedQuests = dailyQuests.filter(q => q.isCompleted).length;
 
   useEffect(() => {
     initializeDailyQuests();
     loadCommunityTrees();
     checkAchievements(stats);
 
-    // Entrance animations
+    // Main entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 600,
+        duration: 500,
         useNativeDriver: true,
       }),
       Animated.spring(slideAnim, {
         toValue: 0,
-        tension: 50,
-        friction: 8,
+        tension: 60,
+        friction: 12,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 60,
+        friction: 10,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Staggered animation for quick actions
-    const staggerAnimations = staggerAnims.map((anim, index) =>
-      Animated.timing(anim, {
-        toValue: 1,
-        duration: 400,
-        delay: index * 80,
-        useNativeDriver: true,
-      })
-    );
-    Animated.stagger(80, staggerAnimations).start();
+    // Staggered card animations
+    cardAnims.forEach((anim, index) => {
+      Animated.parallel([
+        Animated.timing(anim.opacity, {
+          toValue: 1,
+          duration: 400,
+          delay: 200 + (index * 80),
+          useNativeDriver: true,
+        }),
+        Animated.spring(anim.translateY, {
+          toValue: 0,
+          tension: 80,
+          friction: 12,
+          delay: 200 + (index * 80),
+          useNativeDriver: true,
+        }),
+        Animated.spring(anim.scale, {
+          toValue: 1,
+          tension: 80,
+          friction: 10,
+          delay: 200 + (index * 80),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+
+    // Pulse animation for live indicator
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
   }, []);
 
-  // Get greeting based on time
+  // Get greeting
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return { text: 'Selamat Pagi', icon: '🌅' };
-    if (hour < 17) return { text: 'Selamat Siang', icon: '☀️' };
-    if (hour < 20) return { text: 'Selamat Sore', icon: '🌆' };
-    return { text: 'Selamat Malam', icon: '🌙' };
+    if (hour < 12) return { text: 'Selamat Pagi', icon: '🌅', color: '#FF9500' };
+    if (hour < 17) return { text: 'Selamat Siang', icon: '☀️', color: '#FFD60A' };
+    if (hour < 20) return { text: 'Selamat Sore', icon: '🌆', color: '#FF6B6B' };
+    return { text: 'Selamat Malam', icon: '🌙', color: '#A78BFA' };
   };
 
   const greeting = getGreeting();
 
   // User data
   const userData = {
-    name: profile.name || user?.name || 'Pengguna',
+    name: profile.name || user?.name || 'Eco Warrior',
     profileImage: profile.avatar || require('../../../assets/home/avatar.png'),
-    level: stats.levelName || 'Eco Beginner 🌱',
+    level: stats.level || 1,
+    levelName: stats.levelName || 'Eco Beginner 🌱',
     points: stats.totalPoints || 0,
     streak: stats.streak || 0,
-    location: profile.location || 'Makassar',
   };
 
-  // Stats data
-  const statsData = [
-    {
-      id: 1,
-      title: 'Pohon',
-      value: stats.totalTrees || 0,
-      icon: '🌱',
-      color: COLORS.PRIMARY,
-      gradient: GRADIENT_COLORS.PRIMARY,
-    },
-    {
-      id: 2,
-      title: 'Poin',
-      value: stats.totalPoints || 0,
-      icon: '⭐',
-      color: COLORS.ACCENT,
-      gradient: GRADIENT_COLORS.SUNRISE,
-    },
-    {
-      id: 3,
-      title: 'Streak',
-      value: stats.streak || 0,
-      suffix: ' hari',
-      icon: '🔥',
-      color: COLORS.ERROR,
-      gradient: GRADIENT_COLORS.SUNSET,
-    },
-  ];
+  // Calculate level progress
+  const levelProgress = ((stats.totalPoints || 0) % 500) / 500;
 
-  // Quick actions
+  // Quick Actions - 2x2 grid with larger cards
   const quickActions = [
     {
       id: 1,
       title: 'Tanam Pohon',
+      subtitle: 'Mulai aksi hijau',
       icon: '🌱',
       gradient: ['#10B981', '#059669'],
       onPress: () => navigation.navigate('Camera'),
@@ -142,219 +160,107 @@ export default function HomeScreen({ navigation }) {
     {
       id: 2,
       title: 'Jejak Karbon',
+      subtitle: 'Hitung emisi CO₂',
       icon: '🌍',
-      gradient: ['#3B82F6', '#1D4ED8'],
+      gradient: ['#3B82F6', '#2563EB'],
       onPress: () => navigation.navigate('CarbonCalculator'),
     },
     {
       id: 3,
       title: 'Tantangan',
+      subtitle: 'Misi & hadiah',
       icon: '🎯',
       gradient: ['#F59E0B', '#D97706'],
       onPress: () => navigation.navigate('LearnChallenge'),
     },
     {
       id: 4,
-      title: 'Eco Wallet',
-      icon: '💎',
-      gradient: ['#8B5CF6', '#6D28D9'],
-      onPress: () => navigation.navigate('EcoWallet'),
-    },
-    {
-      id: 5,
       title: 'Komunitas',
+      subtitle: 'Berbagi cerita',
       icon: '👥',
-      gradient: ['#EC4899', '#BE185D'],
+      gradient: ['#EC4899', '#DB2777'],
       onPress: () => navigation.navigate('CommunityFeed'),
-    },
-    {
-      id: 6,
-      title: 'Leaderboard',
-      icon: '🏆',
-      gradient: ['#F97316', '#C2410C'],
-      onPress: () => navigation.navigate('Leaderboard'),
     },
   ];
 
-  // Header parallax
-  const headerHeight = scrollY.interpolate({
-    inputRange: [0, 150],
-    outputRange: [280, 180],
-    extrapolate: 'clamp',
-  });
+  // Feature highlights
+  const features = [
+    {
+      id: 1,
+      title: 'Eco Wallet',
+      icon: '💎',
+      points: stats.totalPoints || 0,
+      color: '#8B5CF6',
+      onPress: () => navigation.navigate('EcoWallet'),
+    },
+    {
+      id: 2,
+      title: 'Leaderboard',
+      icon: '🏆',
+      rank: '#23',
+      color: '#F59E0B',
+      onPress: () => navigation.navigate('Leaderboard'),
+    },
+    {
+      id: 3,
+      title: 'Peta RTH',
+      icon: '📍',
+      nearby: '12 lokasi',
+      color: '#10B981',
+      onPress: () => navigation.navigate('Map'),
+    },
+  ];
 
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [1, 0.9],
-    extrapolate: 'clamp',
-  });
+  // Environmental tips
+  const ecoTips = [
+    { id: 1, text: 'Hemat listrik 1 jam = 0.5kg CO₂', icon: '💡' },
+    { id: 2, text: 'Bersepeda 5km = 1.3kg CO₂ tersimpan', icon: '🚲' },
+    { id: 3, text: '1 pohon menyerap 21kg CO₂/tahun', icon: '🌳' },
+  ];
 
-  // Render stat card
-  const renderStatCard = (stat, index) => (
-    <AnimatedPressable 
-      key={stat.id} 
-      style={styles.statCard}
-      onPress={() => navigation.navigate('Statistics')}
+  const [currentTip, setCurrentTip] = useState(0);
+
+  useEffect(() => {
+    const tipInterval = setInterval(() => {
+      setCurrentTip((prev) => (prev + 1) % ecoTips.length);
+    }, 5000);
+    return () => clearInterval(tipInterval);
+  }, []);
+
+  // Render animated card
+  const renderAnimatedView = (index, children, style = {}) => (
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity: cardAnims[index]?.opacity || 1,
+          transform: [
+            { translateY: cardAnims[index]?.translateY || 0 },
+            { scale: cardAnims[index]?.scale || 1 },
+          ],
+        },
+      ]}
     >
-      <LinearGradient
-        colors={[COLORS.WHITE, COLORS.GRAY_50]}
-        style={styles.statCardGradient}
-      >
-        <View style={[styles.statIconBg, { backgroundColor: stat.color + '15' }]}>
-          <Text style={styles.statIcon}>{stat.icon}</Text>
-        </View>
-        <AnimatedCounter
-          value={stat.value}
-          suffix={stat.suffix || ''}
-          textStyle={styles.statValue}
-          duration={1200}
-          delay={index * 200}
-        />
-        <Text style={styles.statTitle}>{stat.title}</Text>
-      </LinearGradient>
-    </AnimatedPressable>
-  );
-
-  // Render quick action
-  const renderQuickAction = (action, index) => {
-    const animStyle = {
-      opacity: staggerAnims[index],
-      transform: [
-        {
-          translateY: staggerAnims[index].interpolate({
-            inputRange: [0, 1],
-            outputRange: [20, 0],
-          }),
-        },
-        {
-          scale: staggerAnims[index].interpolate({
-            inputRange: [0, 1],
-            outputRange: [0.9, 1],
-          }),
-        },
-      ],
-    };
-
-    return (
-      <Animated.View key={action.id} style={[styles.quickActionWrapper, animStyle]}>
-        <AnimatedPressable onPress={action.onPress} scaleValue={0.95}>
-          <LinearGradient
-            colors={action.gradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.quickActionCard}
-          >
-            <View style={styles.quickActionGlow} />
-            <Text style={styles.quickActionIcon}>{action.icon}</Text>
-            <Text style={styles.quickActionTitle}>{action.title}</Text>
-          </LinearGradient>
-        </AnimatedPressable>
-      </Animated.View>
-    );
-  };
-
-  // Render daily quest
-  const renderDailyQuest = (quest, index) => (
-    <View key={quest.id} style={styles.questItem}>
-      <View style={[styles.questIconBg, { backgroundColor: quest.isCompleted ? COLORS.SUCCESS + '20' : COLORS.PRIMARY + '15' }]}>
-        <Text style={styles.questIcon}>{quest.icon}</Text>
-      </View>
-      <View style={styles.questContent}>
-        <Text style={styles.questName}>{quest.name}</Text>
-        <View style={styles.questProgressBar}>
-          <View 
-            style={[
-              styles.questProgressFill, 
-              { 
-                width: `${Math.min((quest.progress / quest.requirement.count) * 100, 100)}%`,
-                backgroundColor: quest.isCompleted ? COLORS.SUCCESS : COLORS.PRIMARY,
-              }
-            ]} 
-          />
-        </View>
-      </View>
-      <View style={[styles.questReward, quest.isCompleted && styles.questRewardCompleted]}>
-        <Text style={[styles.questRewardText, quest.isCompleted && { color: COLORS.WHITE }]}>
-          {quest.isCompleted ? '✓' : `+${quest.points}`}
-        </Text>
-      </View>
-    </View>
+      {children}
+    </Animated.View>
   );
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Animated Header */}
-      <Animated.View style={[styles.headerContainer, { height: headerHeight, opacity: headerOpacity }]}>
-        <LinearGradient
-          colors={GRADIENT_COLORS.HEADER}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.header}
-        >
-          {/* Decorative Blobs */}
-          <View style={styles.blob1} />
-          <View style={styles.blob2} />
-          <View style={styles.blob3} />
+      {/* Gradient Background */}
+      <LinearGradient
+        colors={['#059669', '#047857', '#065F46']}
+        style={styles.headerBg}
+      >
+        {/* Decorative Elements */}
+        <View style={styles.decorCircle1} />
+        <View style={styles.decorCircle2} />
+        <View style={styles.decorPattern} />
+      </LinearGradient>
 
-          <Animated.View 
-            style={[
-              styles.headerContent,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            {/* Top Bar */}
-            <View style={styles.topBar}>
-              <View style={styles.greetingContainer}>
-                <Text style={styles.greetingIcon}>{greeting.icon}</Text>
-                <View>
-                  <Text style={styles.greetingText}>{greeting.text},</Text>
-                  <Text style={styles.userName}>{userData.name.split(' ')[0]}</Text>
-                </View>
-              </View>
-
-              <AnimatedPressable style={styles.notificationBtn}>
-                <View style={styles.notificationDot} />
-                <Text style={styles.notificationIcon}>🔔</Text>
-              </AnimatedPressable>
-            </View>
-
-            {/* Profile Card */}
-            <View style={styles.profileCard}>
-              <View style={styles.profileLeft}>
-                <View style={styles.avatarContainer}>
-                  <Image source={userData.profileImage} style={styles.avatar} />
-                  <View style={styles.onlineIndicator} />
-                </View>
-                <View style={styles.profileInfo}>
-                  <View style={styles.levelBadge}>
-                    <Text style={styles.levelText}>{userData.level}</Text>
-                  </View>
-                  <Text style={styles.locationText}>📍 {userData.location}</Text>
-                </View>
-              </View>
-
-              <View style={styles.profileRight}>
-                <View style={styles.streakBadge}>
-                  <Text style={styles.streakIcon}>🔥</Text>
-                  <Text style={styles.streakValue}>{userData.streak}</Text>
-                  <Text style={styles.streakLabel}>hari</Text>
-                </View>
-              </View>
-            </View>
-          </Animated.View>
-        </LinearGradient>
-
-        {/* Curved Bottom */}
-        <View style={styles.curvedBottom} />
-      </Animated.View>
-
-      {/* Scrollable Content */}
-      <Animated.ScrollView
+      <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -364,138 +270,308 @@ export default function HomeScreen({ navigation }) {
         )}
         scrollEventThrottle={16}
       >
-        {/* Stats Row */}
-        <View style={styles.statsContainer}>
-          {statsData.map(renderStatCard)}
-        </View>
+        {/* Header Section */}
+        <Animated.View
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+            },
+          ]}
+        >
+          {/* Top Row */}
+          <View style={styles.topRow}>
+            <View style={styles.greetingSection}>
+              <Text style={styles.greetingText}>
+                {greeting.icon} {greeting.text}
+              </Text>
+              <Text style={styles.userName}>{userData.name.split(' ')[0]}!</Text>
+            </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Aksi Cepat</Text>
-            <Text style={styles.sectionEmoji}>⚡</Text>
+            <View style={styles.topActions}>
+              <AnimatedPressable 
+                style={styles.iconButton}
+                onPress={() => navigation.navigate('Notifications')}
+              >
+                <Text style={styles.iconButtonText}>🔔</Text>
+                <View style={styles.notifBadge}>
+                  <Text style={styles.notifBadgeText}>3</Text>
+                </View>
+              </AnimatedPressable>
+            </View>
           </View>
-          <View style={styles.quickActionsGrid}>
-            {quickActions.map(renderQuickAction)}
-          </View>
-        </View>
 
-        {/* Daily Quests */}
-        {dailyQuests.length > 0 && (
+          {/* Profile Card */}
+          <View style={styles.profileCard}>
+            <View style={styles.profileLeft}>
+              <View style={styles.avatarWrapper}>
+                {/* Level ring */}
+                <View style={styles.levelRing}>
+                  <View style={[styles.levelRingProgress, { 
+                    transform: [{ rotate: `${levelProgress * 360}deg` }]
+                  }]} />
+                </View>
+                <Image source={userData.profileImage} style={styles.avatar} />
+                <View style={styles.levelBadgeSmall}>
+                  <Text style={styles.levelBadgeText}>{userData.level}</Text>
+                </View>
+              </View>
+              
+              <View style={styles.profileInfo}>
+                <Text style={styles.levelName}>{userData.levelName}</Text>
+                <View style={styles.xpBar}>
+                  <View style={[styles.xpBarFill, { width: `${levelProgress * 100}%` }]} />
+                </View>
+                <Text style={styles.xpText}>
+                  {stats.totalPoints % 500} / 500 XP ke level {(stats.level || 1) + 1}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.streakContainer}>
+              <LinearGradient
+                colors={['#FF6B6B', '#FF4757']}
+                style={styles.streakBadge}
+              >
+                <Text style={styles.streakIcon}>🔥</Text>
+                <Text style={styles.streakValue}>{userData.streak}</Text>
+                <Text style={styles.streakLabel}>hari</Text>
+              </LinearGradient>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* Main Content */}
+        <View style={styles.content}>
+          {/* Stats Overview */}
+          {renderAnimatedView(0,
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <View style={[styles.statIconBg, { backgroundColor: '#10B98120' }]}>
+                  <Text style={styles.statIcon}>🌳</Text>
+                </View>
+                <AnimatedCounter
+                  value={stats.totalTrees || 0}
+                  textStyle={styles.statValue}
+                  duration={1200}
+                />
+                <Text style={styles.statLabel}>Pohon</Text>
+              </View>
+
+              <View style={styles.statDivider} />
+
+              <View style={styles.statItem}>
+                <View style={[styles.statIconBg, { backgroundColor: '#F59E0B20' }]}>
+                  <Text style={styles.statIcon}>⭐</Text>
+                </View>
+                <AnimatedCounter
+                  value={stats.totalPoints || 0}
+                  textStyle={styles.statValue}
+                  duration={1200}
+                  delay={200}
+                />
+                <Text style={styles.statLabel}>Poin</Text>
+              </View>
+
+              <View style={styles.statDivider} />
+
+              <View style={styles.statItem}>
+                <View style={[styles.statIconBg, { backgroundColor: '#3B82F620' }]}>
+                  <Text style={styles.statIcon}>💨</Text>
+                </View>
+                <AnimatedCounter
+                  value={stats.co2Absorbed || 0}
+                  decimals={1}
+                  suffix="kg"
+                  textStyle={styles.statValue}
+                  duration={1200}
+                  delay={400}
+                />
+                <Text style={styles.statLabel}>CO₂ Diserap</Text>
+              </View>
+            </View>
+          , styles.statsCard)}
+
+          {/* Eco Tip Banner */}
+          {renderAnimatedView(1,
+            <View style={styles.tipBanner}>
+              <LinearGradient
+                colors={['#FEF3C7', '#FDE68A']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.tipGradient}
+              >
+                <Animated.View style={[styles.tipPulse, { transform: [{ scale: pulseAnim }] }]}>
+                  <Text style={styles.tipIcon}>{ecoTips[currentTip].icon}</Text>
+                </Animated.View>
+                <View style={styles.tipContent}>
+                  <Text style={styles.tipLabel}>💡 Tips Hari Ini</Text>
+                  <Text style={styles.tipText}>{ecoTips[currentTip].text}</Text>
+                </View>
+              </LinearGradient>
+            </View>
+          )}
+
+          {/* Quick Actions Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Misi Hari Ini</Text>
-              <Text style={styles.sectionEmoji}>🎯</Text>
+              <Text style={styles.sectionTitle}>Aksi Cepat</Text>
+              <Text style={styles.sectionSubtitle}>Mulai berkontribusi</Text>
             </View>
-            <GlassCard variant="light" padding="md" style={styles.questsCard}>
-              {dailyQuests.map(renderDailyQuest)}
-            </GlassCard>
-          </View>
-        )}
 
-        {/* Impact Card */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Dampak Kontribusimu</Text>
-            <Text style={styles.sectionEmoji}>🌍</Text>
+            <View style={styles.quickActionsGrid}>
+              {quickActions.map((action, index) => 
+                renderAnimatedView(2 + index,
+                  <AnimatedPressable 
+                    key={action.id}
+                    onPress={action.onPress}
+                    scaleValue={0.95}
+                  >
+                    <LinearGradient
+                      colors={action.gradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.quickActionCard}
+                    >
+                      <View style={styles.quickActionGlow} />
+                      <Text style={styles.quickActionIcon}>{action.icon}</Text>
+                      <Text style={styles.quickActionTitle}>{action.title}</Text>
+                      <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
+                    </LinearGradient>
+                  </AnimatedPressable>
+                , styles.quickActionWrapper)
+              )}
+            </View>
           </View>
-          <AnimatedPressable onPress={() => navigation.navigate('Statistics')}>
-            <LinearGradient
-              colors={['#059669', '#047857', '#065F46']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.impactCard}
-            >
-              <View style={styles.impactDecorative} />
-              <View style={styles.impactContent}>
-                <View style={styles.impactRow}>
-                  <View style={styles.impactItem}>
-                    <Text style={styles.impactIcon}>🌳</Text>
-                    <AnimatedCounter
-                      value={stats.totalTrees || 0}
-                      textStyle={styles.impactValue}
-                      duration={1500}
-                    />
-                    <Text style={styles.impactLabel}>Pohon Ditanam</Text>
-                  </View>
-                  <View style={styles.impactDivider} />
-                  <View style={styles.impactItem}>
-                    <Text style={styles.impactIcon}>💨</Text>
-                    <AnimatedCounter
-                      value={stats.co2Absorbed || 0}
-                      decimals={1}
-                      suffix=" kg"
-                      textStyle={styles.impactValue}
-                      duration={1500}
-                      delay={200}
-                    />
-                    <Text style={styles.impactLabel}>CO₂ Diserap</Text>
-                  </View>
-                </View>
-                <View style={styles.impactFooter}>
-                  <Text style={styles.impactFooterText}>
-                    Setara dengan {Math.round((stats.co2Absorbed || 0) / 21.77)} pohon dewasa per tahun 🌲
+
+          {/* Daily Progress */}
+          {dailyQuests.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Misi Harian</Text>
+                <View style={styles.questProgress}>
+                  <Text style={styles.questProgressText}>
+                    {completedQuests}/{dailyQuests.length}
                   </Text>
                 </View>
               </View>
-            </LinearGradient>
-          </AnimatedPressable>
-        </View>
 
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Aktivitas Terbaru</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('CommunityFeed')}>
-              <Text style={styles.seeAllText}>Lihat Semua</Text>
-            </TouchableOpacity>
+              {renderAnimatedView(6,
+                <View style={styles.questsContainer}>
+                  {dailyQuests.slice(0, 3).map((quest) => (
+                    <View key={quest.id} style={styles.questCard}>
+                      <View style={[
+                        styles.questIconContainer,
+                        quest.isCompleted && styles.questIconCompleted
+                      ]}>
+                        <Text style={styles.questIcon}>{quest.icon}</Text>
+                      </View>
+                      <View style={styles.questInfo}>
+                        <Text style={styles.questName} numberOfLines={1}>{quest.name}</Text>
+                        <View style={styles.questBar}>
+                          <View 
+                            style={[
+                              styles.questBarFill,
+                              { 
+                                width: `${Math.min((quest.progress / quest.requirement.count) * 100, 100)}%`,
+                                backgroundColor: quest.isCompleted ? '#10B981' : '#059669'
+                              }
+                            ]} 
+                          />
+                        </View>
+                      </View>
+                      <View style={[
+                        styles.questRewardBadge,
+                        quest.isCompleted && styles.questRewardCompleted
+                      ]}>
+                        <Text style={[
+                          styles.questRewardText,
+                          quest.isCompleted && { color: '#FFF' }
+                        ]}>
+                          {quest.isCompleted ? '✓' : `+${quest.points}`}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Feature Highlights */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Fitur Lainnya</Text>
+            </View>
+
+            {renderAnimatedView(7,
+              <View style={styles.featuresRow}>
+                {features.map((feature) => (
+                  <AnimatedPressable 
+                    key={feature.id}
+                    style={styles.featureCard}
+                    onPress={feature.onPress}
+                  >
+                    <View style={[styles.featureIconBg, { backgroundColor: feature.color + '15' }]}>
+                      <Text style={styles.featureIcon}>{feature.icon}</Text>
+                    </View>
+                    <Text style={styles.featureTitle}>{feature.title}</Text>
+                    <Text style={[styles.featureValue, { color: feature.color }]}>
+                      {feature.points || feature.rank || feature.nearby}
+                    </Text>
+                  </AnimatedPressable>
+                ))}
+              </View>
+            )}
           </View>
-          <GlassCard variant="light" padding="md">
-            <View style={styles.activityItem}>
-              <View style={[styles.activityIcon, { backgroundColor: COLORS.PRIMARY + '15' }]}>
-                <Text>🌱</Text>
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Budi menanam Mahoni</Text>
-                <Text style={styles.activityTime}>Taman Kota • 2 jam lalu</Text>
-              </View>
-            </View>
 
-            <View style={styles.activityDivider} />
-
-            <View style={styles.activityItem}>
-              <View style={[styles.activityIcon, { backgroundColor: COLORS.ACCENT + '15' }]}>
-                <Text>🏆</Text>
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Target mingguan tercapai!</Text>
-                <Text style={styles.activityTime}>+100 poin bonus</Text>
-              </View>
-            </View>
-
-            <View style={styles.activityDivider} />
-
-            <View style={styles.activityItem}>
-              <View style={[styles.activityIcon, { backgroundColor: COLORS.INFO + '15' }]}>
-                <Text>📍</Text>
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>12 lokasi RTH terdekat</Text>
-                <Text style={styles.activityTime}>Dalam radius 5km</Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.activityAction}
-                onPress={() => navigation.navigate('Map')}
+          {/* Impact Card */}
+          <View style={styles.section}>
+            <AnimatedPressable onPress={() => navigation.navigate('Statistics')}>
+              <LinearGradient
+                colors={['#065F46', '#047857', '#059669']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.impactCard}
               >
-                <Text style={styles.activityActionText}>Lihat →</Text>
-              </TouchableOpacity>
-            </View>
-          </GlassCard>
-        </View>
+                <View style={styles.impactDecor1} />
+                <View style={styles.impactDecor2} />
+                
+                <View style={styles.impactHeader}>
+                  <Text style={styles.impactTitle}>🌍 Dampak Kontribusimu</Text>
+                  <Text style={styles.impactArrow}>→</Text>
+                </View>
 
-        {/* Bottom Spacing */}
-        <View style={styles.bottomSpacing} />
-      </Animated.ScrollView>
+                <View style={styles.impactStats}>
+                  <View style={styles.impactStatItem}>
+                    <Text style={styles.impactStatIcon}>🌳</Text>
+                    <Text style={styles.impactStatValue}>{stats.totalTrees || 0}</Text>
+                    <Text style={styles.impactStatLabel}>Pohon Ditanam</Text>
+                  </View>
+                  
+                  <View style={styles.impactStatDivider} />
+                  
+                  <View style={styles.impactStatItem}>
+                    <Text style={styles.impactStatIcon}>💨</Text>
+                    <Text style={styles.impactStatValue}>{(stats.co2Absorbed || 0).toFixed(1)}</Text>
+                    <Text style={styles.impactStatLabel}>kg CO₂ Diserap</Text>
+                  </View>
+                </View>
+
+                <View style={styles.impactFooter}>
+                  <Text style={styles.impactFooterText}>
+                    ≈ {Math.round((stats.co2Absorbed || 0) / 21.77)} pohon dewasa/tahun 🌲
+                  </Text>
+                </View>
+              </LinearGradient>
+            </AnimatedPressable>
+          </View>
+
+          {/* Bottom Spacing */}
+          <View style={styles.bottomSpacing} />
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -503,121 +579,123 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: '#F0FDF4',
   },
 
-  // Header Styles
-  headerContainer: {
+  // Background
+  headerBg: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 10,
+    height: 380,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
-  header: {
-    flex: 1,
-    paddingTop: Platform.OS === 'ios' ? 60 : 48,
-    paddingHorizontal: 20,
-    overflow: 'hidden',
-  },
-  blob1: {
+  decorCircle1: {
     position: 'absolute',
-    top: -40,
-    right: -30,
-    width: 150,
-    height: 150,
-    borderRadius: 75,
+    top: -60,
+    right: -40,
+    width: 200,
+    height: 200,
+    borderRadius: 100,
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  blob2: {
+  decorCircle2: {
     position: 'absolute',
-    bottom: 20,
-    left: -50,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    top: 150,
+    left: -60,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  blob3: {
+  decorPattern: {
     position: 'absolute',
-    top: 80,
-    left: '40%',
+    bottom: 40,
+    right: 20,
     width: 80,
     height: 80,
-    borderRadius: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.03)',
-  },
-  headerContent: {
-    flex: 1,
-  },
-  curvedBottom: {
-    position: 'absolute',
-    bottom: -2,
-    left: 0,
-    right: 0,
-    height: 30,
-    backgroundColor: COLORS.BACKGROUND,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    transform: [{ rotate: '45deg' }],
   },
 
-  // Top Bar
-  topBar: {
+  // Scroll
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+
+  // Header
+  header: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    alignItems: 'flex-start',
+    marginBottom: 24,
   },
-  greetingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  greetingIcon: {
-    fontSize: 28,
-    marginRight: 12,
-  },
+  greetingSection: {},
   greetingText: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.85)',
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
   userName: {
-    fontSize: 22,
-    color: COLORS.WHITE,
+    fontSize: 28,
+    color: '#FFF',
     fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginTop: 2,
+    marginTop: 4,
   },
-  notificationBtn: {
+  topActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  iconButton: {
     width: 48,
     height: 48,
     borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
-  notificationDot: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.ACCENT,
-    borderWidth: 2,
-    borderColor: COLORS.PRIMARY,
-    zIndex: 1,
-  },
-  notificationIcon: {
+  iconButtonText: {
     fontSize: 22,
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#EF4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#059669',
+  },
+  notifBadgeText: {
+    fontSize: 10,
+    color: '#FFF',
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
 
   // Profile Card
   profileCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
@@ -625,146 +703,212 @@ const styles = StyleSheet.create({
   profileLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
-  avatarContainer: {
+  avatarWrapper: {
     position: 'relative',
     marginRight: 14,
+  },
+  levelRing: {
+    position: 'absolute',
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: 28,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  levelRingProgress: {
+    position: 'absolute',
+    top: -3,
+    left: -3,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFD60A',
   },
   avatar: {
     width: 56,
     height: 56,
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.5)',
+    borderColor: '#FFF',
   },
-  onlineIndicator: {
+  levelBadgeSmall: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 16,
-    height: 16,
+    bottom: -4,
+    right: -4,
+    width: 24,
+    height: 24,
     borderRadius: 8,
-    backgroundColor: '#10B981',
-    borderWidth: 3,
-    borderColor: COLORS.PRIMARY,
+    backgroundColor: '#FFD60A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#059669',
+  },
+  levelBadgeText: {
+    fontSize: 11,
+    color: '#000',
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
   profileInfo: {
-    gap: 6,
+    flex: 1,
   },
-  levelBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  levelText: {
-    fontSize: 12,
-    color: COLORS.WHITE,
+  levelName: {
+    fontSize: 14,
+    color: '#FFF',
     fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+    marginBottom: 8,
   },
-  locationText: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+  xpBar: {
+    height: 6,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 6,
   },
-  profileRight: {},
+  xpBarFill: {
+    height: '100%',
+    backgroundColor: '#FFD60A',
+    borderRadius: 3,
+  },
+  xpText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
+  streakContainer: {},
   streakBadge: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    paddingVertical: 10,
     borderRadius: 16,
   },
   streakIcon: {
     fontSize: 20,
   },
   streakValue: {
-    fontSize: 22,
-    color: COLORS.WHITE,
+    fontSize: 24,
+    color: '#FFF',
     fontFamily: FONT_FAMILIES.SORA.BOLD,
     marginTop: 2,
   },
   streakLabel: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.8)',
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
 
-  // Scroll View
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 300,
+  // Content
+  content: {
     paddingHorizontal: 20,
-    paddingBottom: 100,
+    paddingTop: 8,
   },
 
   // Stats
-  statsContainer: {
-    flexDirection: 'row',
-    marginBottom: 28,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: 20,
-    overflow: 'hidden',
+  statsCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
     ...SHADOWS.MEDIUM,
   },
-  statCardGradient: {
-    padding: 16,
+  statsRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: COLORS.BORDER_LIGHT,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
   },
   statIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
   },
   statIcon: {
-    fontSize: 22,
+    fontSize: 24,
   },
   statValue: {
     fontSize: 24,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
-  statTitle: {
+  statLabel: {
     fontSize: 12,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
     marginTop: 4,
   },
+  statDivider: {
+    width: 1,
+    height: 60,
+    backgroundColor: COLORS.BORDER,
+  },
+
+  // Tip Banner
+  tipBanner: {
+    marginBottom: 24,
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...SHADOWS.SMALL,
+  },
+  tipGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  tipPulse: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(217,119,6,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  tipIcon: {
+    fontSize: 24,
+  },
+  tipContent: {
+    flex: 1,
+  },
+  tipLabel: {
+    fontSize: 11,
+    color: '#92400E',
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+    marginBottom: 4,
+  },
+  tipText: {
+    fontSize: 14,
+    color: '#78350F',
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
 
   // Sections
   section: {
-    marginBottom: 28,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
-    flex: 1,
   },
-  sectionEmoji: {
-    fontSize: 20,
-  },
-  seeAllText: {
-    fontSize: 14,
-    color: COLORS.PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+  sectionSubtitle: {
+    fontSize: 13,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
 
   // Quick Actions
@@ -774,59 +918,81 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   quickActionWrapper: {
-    width: (width - 40 - 24) / 3,
+    width: CARD_WIDTH,
   },
   quickActionCard: {
-    aspectRatio: 1,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    height: 130,
+    borderRadius: 24,
+    padding: 18,
+    justifyContent: 'space-between',
     overflow: 'hidden',
     ...SHADOWS.MEDIUM,
   },
   quickActionGlow: {
     position: 'absolute',
-    top: -20,
-    right: -20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    top: -30,
+    right: -30,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   quickActionIcon: {
-    fontSize: 32,
-    marginBottom: 8,
+    fontSize: 36,
   },
   quickActionTitle: {
-    fontSize: 11,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-    textAlign: 'center',
+    fontSize: 16,
+    color: '#FFF',
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  quickActionSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    marginTop: 2,
   },
 
-  // Daily Quests
-  questsCard: {
-    ...SHADOWS.MEDIUM,
+  // Quest Progress
+  questProgress: {
+    backgroundColor: '#10B98120',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
-  questItem: {
+  questProgressText: {
+    fontSize: 13,
+    color: '#059669',
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  questsContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 4,
+    ...SHADOWS.SMALL,
+  },
+  questCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    padding: 14,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.BORDER_LIGHT,
   },
-  questIconBg: {
+  questIconContainer: {
     width: 44,
     height: 44,
     borderRadius: 14,
+    backgroundColor: '#05966915',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
   },
+  questIconCompleted: {
+    backgroundColor: '#10B98120',
+  },
   questIcon: {
     fontSize: 22,
   },
-  questContent: {
+  questInfo: {
     flex: 1,
   },
   questName: {
@@ -835,133 +1001,147 @@ const styles = StyleSheet.create({
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
     marginBottom: 8,
   },
-  questProgressBar: {
+  questBar: {
     height: 6,
     backgroundColor: COLORS.GRAY_200,
     borderRadius: 3,
     overflow: 'hidden',
   },
-  questProgressFill: {
+  questBarFill: {
     height: '100%',
     borderRadius: 3,
   },
-  questReward: {
-    backgroundColor: COLORS.PRIMARY + '15',
+  questRewardBadge: {
+    backgroundColor: '#05966915',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
+    borderRadius: 10,
     marginLeft: 12,
   },
   questRewardCompleted: {
-    backgroundColor: COLORS.SUCCESS,
+    backgroundColor: '#10B981',
   },
   questRewardText: {
     fontSize: 12,
-    color: COLORS.PRIMARY,
+    color: '#059669',
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+
+  // Features
+  featuresRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  featureCard: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 16,
+    alignItems: 'center',
+    ...SHADOWS.SMALL,
+  },
+  featureIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  featureIcon: {
+    fontSize: 24,
+  },
+  featureTitle: {
+    fontSize: 12,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    marginBottom: 4,
+  },
+  featureValue: {
+    fontSize: 14,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
 
   // Impact Card
   impactCard: {
-    borderRadius: 24,
+    borderRadius: 28,
     padding: 24,
     overflow: 'hidden',
     ...SHADOWS.LARGE,
   },
-  impactDecorative: {
+  impactDecor1: {
     position: 'absolute',
-    top: -30,
-    right: -30,
+    top: -40,
+    right: -40,
     width: 120,
     height: 120,
     borderRadius: 60,
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  impactContent: {},
-  impactRow: {
+  impactDecor2: {
+    position: 'absolute',
+    bottom: -20,
+    left: -20,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  impactHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
-  },
-  impactItem: {
     alignItems: 'center',
-    flex: 1,
+    justifyContent: 'space-between',
+    marginBottom: 24,
   },
-  impactIcon: {
-    fontSize: 36,
-    marginBottom: 10,
-  },
-  impactValue: {
-    fontSize: 28,
-    color: COLORS.WHITE,
+  impactTitle: {
+    fontSize: 18,
+    color: '#FFF',
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
-  impactLabel: {
+  impactArrow: {
+    fontSize: 20,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  impactStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  impactStatItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  impactStatIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  impactStatValue: {
+    fontSize: 32,
+    color: '#FFF',
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  impactStatLabel: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
+    color: 'rgba(255,255,255,0.75)',
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
     marginTop: 4,
   },
-  impactDivider: {
+  impactStatDivider: {
     width: 1,
-    height: '80%',
+    height: 60,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    alignSelf: 'center',
+    marginHorizontal: 16,
   },
   impactFooter: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 12,
-    padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 14,
+    padding: 14,
   },
   impactFooterText: {
-    fontSize: 12,
+    fontSize: 13,
     color: 'rgba(255,255,255,0.9)',
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
     textAlign: 'center',
-  },
-
-  // Activity
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  activityIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  activityContent: {
-    flex: 1,
-  },
-  activityTitle: {
-    fontSize: 14,
-    color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-  },
-  activityTime: {
-    fontSize: 12,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    marginTop: 2,
-  },
-  activityDivider: {
-    height: 1,
-    backgroundColor: COLORS.BORDER_LIGHT,
-  },
-  activityAction: {
-    backgroundColor: COLORS.PRIMARY + '15',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  activityActionText: {
-    fontSize: 12,
-    color: COLORS.PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
   },
 
   // Bottom
@@ -969,4 +1149,3 @@ const styles = StyleSheet.create({
     height: 20,
   },
 });
-

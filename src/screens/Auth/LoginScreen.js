@@ -1,9 +1,9 @@
 /**
- * Login Screen - Halaman login pengguna
+ * LoginScreen - Modern Login dengan Glassmorphism & Animations
  * @module screens/Auth/LoginScreen
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,35 +15,97 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Animated,
+  Dimensions,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../constants/colors';
+import { COLORS, GRADIENT_COLORS, SHADOWS } from '../../constants/colors';
 import { SPACING } from '../../constants/spacing';
 import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
 import { useAuthStore } from '../../store/authStore';
 import { useUserStore } from '../../store/userStore';
 import { useTreeStore } from '../../store/treeStore';
 import { useAchievementStore } from '../../store/achievementStore';
-import Input from '../../components/atoms/Input';
+import AnimatedPressable from '../../components/atoms/AnimatedPressable';
+
+const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [focusedInput, setFocusedInput] = useState(null);
 
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const logoScale = useRef(new Animated.Value(0.5)).current;
+  const formSlide = useRef(new Animated.Value(100)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  // Store hooks
   const { login, isLoading, error, clearError } = useAuthStore();
   const { initializeFromAuth, initializeWithDemoData, initializeNewUser: initNewUserStats } = useUserStore();
   const { initializeWithDemoData: initDemoTrees, initializeNewUser: initNewUserTrees } = useTreeStore();
   const { initializeWithDemoData: initDemoAchievements, initializeNewUser: initNewUserAchievements } = useAchievementStore();
 
   useEffect(() => {
+    // Entrance animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.spring(logoScale, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(formSlide, {
+        toValue: 0,
+        tension: 40,
+        friction: 8,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Floating animation loop
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
     // Clear error when screen focuses
     const unsubscribe = navigation.addListener('focus', () => {
       clearError();
     });
     return unsubscribe;
   }, [navigation]);
+
+  const floatTranslate = floatAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -10],
+  });
 
   const validateForm = () => {
     const newErrors = {};
@@ -73,22 +135,17 @@ export default function LoginScreen({ navigation }) {
       const authUser = useAuthStore.getState().user;
       initializeFromAuth(authUser);
       
-      // Check if demo user (email: demo@aksihijau.id)
       const isDemoUser = email.toLowerCase() === 'demo@aksihijau.id';
       
       if (isDemoUser) {
-        // Initialize with demo data
         initializeWithDemoData();
         initDemoTrees();
         initDemoAchievements();
       } else {
-        // Check if returning user or new user based on ID
-        // For now, treat all non-demo as new users
         initNewUserStats();
         initNewUserTrees();
         initNewUserAchievements();
       }
-      // Navigation will be handled by AppNavigator based on auth state
     } else {
       Alert.alert('Login Gagal', result.error || 'Terjadi kesalahan');
     }
@@ -102,48 +159,119 @@ export default function LoginScreen({ navigation }) {
     navigation.navigate('Register');
   };
 
+  const fillDemoCredentials = () => {
+    setEmail('demo@aksihijau.id');
+    setPassword('demo123');
+  };
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.PRIMARY} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Header with Gradient */}
+      {/* Background Gradient */}
       <LinearGradient
-        colors={[COLORS.PRIMARY, COLORS.PRIMARY_DARK]}
-        style={styles.header}
+        colors={['#059669', '#047857', '#065F46']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.backgroundGradient}
       >
-        <View style={styles.headerContent}>
-          <Text style={styles.logoIcon}>🌱</Text>
-          <Text style={styles.logoText}>Aksi Hijau</Text>
-          <Text style={styles.welcomeText}>Selamat Datang Kembali!</Text>
-          <Text style={styles.subtitleText}>Masuk untuk melanjutkan aksi hijau</Text>
-        </View>
+        {/* Decorative Elements */}
+        <View style={styles.decorCircle1} />
+        <View style={styles.decorCircle2} />
+        <View style={styles.decorCircle3} />
+        
+        {/* Floating Leaves */}
+        <Animated.Text 
+          style={[
+            styles.floatingLeaf1, 
+            { transform: [{ translateY: floatTranslate }] }
+          ]}
+        >
+          🍃
+        </Animated.Text>
+        <Animated.Text 
+          style={[
+            styles.floatingLeaf2, 
+            { transform: [{ translateY: Animated.multiply(floatTranslate, -1) }] }
+          ]}
+        >
+          🌿
+        </Animated.Text>
       </LinearGradient>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.formContainer}
+        style={styles.content}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Header */}
+          <Animated.View 
+            style={[
+              styles.header,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  { translateY: slideAnim },
+                  { scale: logoScale },
+                ],
+              },
+            ]}
+          >
+            <View style={styles.logoContainer}>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.25)', 'rgba(255,255,255,0.1)']}
+                style={styles.logoBg}
+              >
+                <Text style={styles.logoIcon}>🌱</Text>
+              </LinearGradient>
+            </View>
+            <Text style={styles.appName}>Aksi Hijau</Text>
+            <Text style={styles.tagline}>Tanam, Tag, Tumbuh Bersama Bumi</Text>
+          </Animated.View>
+
           {/* Form Card */}
-          <View style={styles.formCard}>
+          <Animated.View 
+            style={[
+              styles.formCard,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: formSlide }],
+              },
+            ]}
+          >
+            {/* Welcome Text */}
+            <View style={styles.welcomeSection}>
+              <Text style={styles.welcomeTitle}>Selamat Datang! 👋</Text>
+              <Text style={styles.welcomeSubtitle}>
+                Masuk untuk melanjutkan aksi hijau
+              </Text>
+            </View>
+
             {/* Error Message */}
             {error && (
-              <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>⚠️ {error}</Text>
-              </View>
+              <Animated.View style={styles.errorContainer}>
+                <Text style={styles.errorIcon}>⚠️</Text>
+                <Text style={styles.errorText}>{error}</Text>
+              </Animated.View>
             )}
 
             {/* Email Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Email</Text>
+              <View style={[
+                styles.inputContainer,
+                focusedInput === 'email' && styles.inputContainerFocused,
+                errors.email && styles.inputContainerError,
+              ]}>
                 <Text style={styles.inputIcon}>📧</Text>
-                <Input
-                  placeholder="Masukkan email"
+                <TextInput
+                  style={styles.input}
+                  placeholder="nama@email.com"
+                  placeholderTextColor={COLORS.TEXT_DISABLED}
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
@@ -151,28 +279,36 @@ export default function LoginScreen({ navigation }) {
                   }}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  style={styles.input}
-                  error={errors.email}
+                  onFocus={() => setFocusedInput('email')}
+                  onBlur={() => setFocusedInput(null)}
                 />
               </View>
-              {errors.email && <Text style={styles.fieldError}>{errors.email}</Text>}
+              {errors.email && (
+                <Text style={styles.errorMessage}>{errors.email}</Text>
+              )}
             </View>
 
             {/* Password Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.inputWrapper}>
-                <Text style={styles.inputIcon}>🔒</Text>
-                <Input
+              <Text style={styles.inputLabel}>Password</Text>
+              <View style={[
+                styles.inputContainer,
+                focusedInput === 'password' && styles.inputContainerFocused,
+                errors.password && styles.inputContainerError,
+              ]}>
+                <Text style={styles.inputIcon}>🔐</Text>
+                <TextInput
+                  style={styles.input}
                   placeholder="Masukkan password"
+                  placeholderTextColor={COLORS.TEXT_DISABLED}
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
                     if (errors.password) setErrors({ ...errors, password: null });
                   }}
                   secureTextEntry={!showPassword}
-                  style={styles.input}
-                  error={errors.password}
+                  onFocus={() => setFocusedInput('password')}
+                  onBlur={() => setFocusedInput(null)}
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -181,7 +317,9 @@ export default function LoginScreen({ navigation }) {
                   <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '🙈'}</Text>
                 </TouchableOpacity>
               </View>
-              {errors.password && <Text style={styles.fieldError}>{errors.password}</Text>}
+              {errors.password && (
+                <Text style={styles.errorMessage}>{errors.password}</Text>
+              )}
             </View>
 
             {/* Forgot Password */}
@@ -190,57 +328,70 @@ export default function LoginScreen({ navigation }) {
             </TouchableOpacity>
 
             {/* Login Button */}
-            <TouchableOpacity
-              onPress={handleLogin}
-              disabled={isLoading}
-              style={styles.loginButton}
-            >
+            <AnimatedPressable onPress={handleLogin} disabled={isLoading}>
               <LinearGradient
-                colors={[COLORS.PRIMARY, COLORS.PRIMARY_DARK]}
-                style={styles.loginButtonGradient}
+                colors={isLoading ? [COLORS.GRAY_400, COLORS.GRAY_500] : ['#10B981', '#059669']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.loginButton}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#FFF" />
+                  <ActivityIndicator color="#FFF" size="small" />
                 ) : (
-                  <Text style={styles.loginButtonText}>Masuk</Text>
+                  <>
+                    <Text style={styles.loginButtonText}>Masuk</Text>
+                    <Text style={styles.loginButtonIcon}>→</Text>
+                  </>
                 )}
               </LinearGradient>
-            </TouchableOpacity>
+            </AnimatedPressable>
 
             {/* Divider */}
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>atau</Text>
+              <Text style={styles.dividerText}>atau masuk dengan</Text>
               <View style={styles.dividerLine} />
             </View>
 
-            {/* Social Login Buttons */}
-            <View style={styles.socialButtons}>
-              <TouchableOpacity style={styles.socialButton}>
+            {/* Social Login */}
+            <View style={styles.socialRow}>
+              <AnimatedPressable style={styles.socialButton}>
                 <Text style={styles.socialIcon}>🔵</Text>
                 <Text style={styles.socialText}>Google</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialButton}>
+              </AnimatedPressable>
+              <AnimatedPressable style={styles.socialButton}>
                 <Text style={styles.socialIcon}>📱</Text>
                 <Text style={styles.socialText}>Phone</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
 
             {/* Register Link */}
-            <View style={styles.registerContainer}>
+            <View style={styles.registerRow}>
               <Text style={styles.registerText}>Belum punya akun? </Text>
               <TouchableOpacity onPress={handleRegister}>
                 <Text style={styles.registerLink}>Daftar Sekarang</Text>
               </TouchableOpacity>
             </View>
+          </Animated.View>
 
-            {/* Demo Hint */}
-            <View style={styles.demoHint}>
-              <Text style={styles.demoHintText}>
-                💡 Demo: demo@aksihijau.id / demo123
-              </Text>
+          {/* Demo Hint */}
+          <AnimatedPressable onPress={fillDemoCredentials}>
+            <View style={styles.demoCard}>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.05)']}
+                style={styles.demoCardGradient}
+              >
+                <Text style={styles.demoIcon}>💡</Text>
+                <View style={styles.demoTextContainer}>
+                  <Text style={styles.demoTitle}>Coba Akun Demo</Text>
+                  <Text style={styles.demoCredentials}>Tap untuk auto-fill</Text>
+                </View>
+                <Text style={styles.demoArrow}>→</Text>
+              </LinearGradient>
             </View>
-          </View>
+          </AnimatedPressable>
+
+          <View style={styles.bottomSpacing} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -250,138 +401,231 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: '#059669',
   },
-  header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 40,
-    paddingHorizontal: SPACING.PADDING.XL,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+  backgroundGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
-  headerContent: {
-    alignItems: 'center',
+  decorCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -80,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  logoIcon: {
-    fontSize: 48,
-    marginBottom: SPACING.MARGIN.SM,
+  decorCircle2: {
+    position: 'absolute',
+    top: height * 0.3,
+    left: -60,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  logoText: {
-    fontSize: FONT_SIZES.H3,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    color: COLORS.WHITE,
-    marginBottom: SPACING.MARGIN.MD,
+  decorCircle3: {
+    position: 'absolute',
+    bottom: 100,
+    right: -40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  welcomeText: {
-    fontSize: FONT_SIZES.H4,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    color: COLORS.WHITE,
-    marginBottom: SPACING.MARGIN.XS,
+  floatingLeaf1: {
+    position: 'absolute',
+    top: 120,
+    right: 40,
+    fontSize: 28,
+    opacity: 0.6,
   },
-  subtitleText: {
-    fontSize: FONT_SIZES.REGULAR,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    color: COLORS.WHITE,
-    opacity: 0.9,
+  floatingLeaf2: {
+    position: 'absolute',
+    top: 200,
+    left: 30,
+    fontSize: 24,
+    opacity: 0.5,
   },
-  formContainer: {
+  content: {
     flex: 1,
-    marginTop: -20,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: SPACING.PADDING.XL,
-    paddingBottom: 40,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'ios' ? 80 : 60,
   },
+
+  // Header
+  header: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logoContainer: {
+    marginBottom: 16,
+  },
+  logoBg: {
+    width: 88,
+    height: 88,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  logoIcon: {
+    fontSize: 44,
+  },
+  appName: {
+    fontSize: 32,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    color: COLORS.WHITE,
+    marginBottom: 8,
+  },
+  tagline: {
+    fontSize: 14,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    color: 'rgba(255,255,255,0.8)',
+  },
+
+  // Form Card
   formCard: {
     backgroundColor: COLORS.WHITE,
-    borderRadius: 24,
-    padding: SPACING.PADDING.XL,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    borderRadius: 28,
+    padding: 28,
+    ...SHADOWS.EXTRA_LARGE,
   },
+  welcomeSection: {
+    marginBottom: 24,
+  },
+  welcomeTitle: {
+    fontSize: 24,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    color: COLORS.TEXT_PRIMARY,
+    marginBottom: 6,
+  },
+  welcomeSubtitle: {
+    fontSize: 14,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    color: COLORS.TEXT_SECONDARY,
+  },
+
+  // Error
   errorContainer: {
-    backgroundColor: COLORS.ERROR + '15',
-    borderRadius: 12,
-    padding: SPACING.PADDING.MD,
-    marginBottom: SPACING.MARGIN.LG,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.ERROR + '12',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: COLORS.ERROR + '30',
+  },
+  errorIcon: {
+    fontSize: 18,
+    marginRight: 10,
   },
   errorText: {
-    color: COLORS.ERROR,
-    fontSize: FONT_SIZES.SMALL,
+    flex: 1,
+    fontSize: 13,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-    textAlign: 'center',
+    color: COLORS.ERROR,
   },
+
+  // Input
   inputGroup: {
-    marginBottom: SPACING.MARGIN.LG,
+    marginBottom: 20,
   },
-  label: {
-    fontSize: FONT_SIZES.REGULAR,
+  inputLabel: {
+    fontSize: 14,
     fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.MARGIN.SM,
+    marginBottom: 10,
   },
-  inputWrapper: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.GRAY_50,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: COLORS.BORDER,
-    paddingHorizontal: SPACING.PADDING.MD,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    paddingHorizontal: 16,
+    height: 56,
+  },
+  inputContainerFocused: {
+    borderColor: '#10B981',
+    backgroundColor: '#10B981' + '08',
+  },
+  inputContainerError: {
+    borderColor: COLORS.ERROR,
+    backgroundColor: COLORS.ERROR + '08',
   },
   inputIcon: {
-    fontSize: 18,
-    marginRight: SPACING.MARGIN.SM,
+    fontSize: 20,
+    marginRight: 12,
   },
   input: {
     flex: 1,
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    paddingHorizontal: 0,
+    fontSize: 15,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    color: COLORS.TEXT_PRIMARY,
   },
   eyeButton: {
-    padding: SPACING.PADDING.SM,
+    padding: 8,
+    marginLeft: 8,
   },
   eyeIcon: {
-    fontSize: 18,
+    fontSize: 20,
   },
-  fieldError: {
+  errorMessage: {
+    fontSize: 12,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
     color: COLORS.ERROR,
-    fontSize: FONT_SIZES.SMALL,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    marginTop: SPACING.MARGIN.XS,
+    marginTop: 6,
+    marginLeft: 4,
   },
+
+  // Forgot Password
   forgotButton: {
     alignSelf: 'flex-end',
-    marginBottom: SPACING.MARGIN.LG,
+    marginBottom: 24,
   },
   forgotText: {
-    color: COLORS.PRIMARY,
-    fontSize: FONT_SIZES.SMALL,
+    fontSize: 13,
     fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+    color: '#10B981',
   },
+
+  // Login Button
   loginButton: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: SPACING.MARGIN.LG,
-  },
-  loginButtonGradient: {
-    paddingVertical: SPACING.PADDING.LG,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 56,
+    borderRadius: 16,
+    marginBottom: 24,
+    ...SHADOWS.GLOW_PRIMARY,
   },
   loginButtonText: {
-    color: COLORS.WHITE,
-    fontSize: FONT_SIZES.MEDIUM,
+    fontSize: 17,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
+    color: COLORS.WHITE,
   },
+  loginButtonIcon: {
+    fontSize: 20,
+    color: COLORS.WHITE,
+    marginLeft: 8,
+  },
+
+  // Divider
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.MARGIN.LG,
+    marginBottom: 24,
   },
   dividerLine: {
     flex: 1,
@@ -389,63 +633,94 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BORDER,
   },
   dividerText: {
-    color: COLORS.TEXT_SECONDARY,
-    fontSize: FONT_SIZES.SMALL,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    marginHorizontal: SPACING.MARGIN.MD,
+    fontSize: 12,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    color: COLORS.TEXT_TERTIARY,
+    marginHorizontal: 16,
   },
-  socialButtons: {
+
+  // Social
+  socialRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.MARGIN.XL,
+    gap: 12,
+    marginBottom: 24,
   },
   socialButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    height: 52,
     backgroundColor: COLORS.GRAY_50,
-    borderRadius: 12,
-    paddingVertical: SPACING.PADDING.MD,
-    marginHorizontal: SPACING.MARGIN.XS,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: COLORS.BORDER,
   },
   socialIcon: {
-    fontSize: 18,
-    marginRight: SPACING.MARGIN.SM,
+    fontSize: 20,
+    marginRight: 10,
   },
   socialText: {
+    fontSize: 14,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
     color: COLORS.TEXT_PRIMARY,
-    fontSize: FONT_SIZES.SMALL,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
-  registerContainer: {
+
+  // Register
+  registerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
   registerText: {
-    color: COLORS.TEXT_SECONDARY,
-    fontSize: FONT_SIZES.REGULAR,
+    fontSize: 14,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    color: COLORS.TEXT_SECONDARY,
   },
   registerLink: {
-    color: COLORS.PRIMARY,
-    fontSize: FONT_SIZES.REGULAR,
+    fontSize: 14,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
+    color: '#10B981',
   },
-  demoHint: {
-    marginTop: SPACING.MARGIN.LG,
-    backgroundColor: COLORS.PRIMARY + '10',
-    borderRadius: 12,
-    padding: SPACING.PADDING.MD,
+
+  // Demo Card
+  demoCard: {
+    marginTop: 24,
+    borderRadius: 16,
+    overflow: 'hidden',
   },
-  demoHintText: {
-    color: COLORS.PRIMARY,
-    fontSize: FONT_SIZES.SMALL,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-    textAlign: 'center',
+  demoCardGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  demoIcon: {
+    fontSize: 24,
+    marginRight: 14,
+  },
+  demoTextContainer: {
+    flex: 1,
+  },
+  demoTitle: {
+    fontSize: 14,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+    color: COLORS.WHITE,
+  },
+  demoCredentials: {
+    fontSize: 12,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 2,
+  },
+  demoArrow: {
+    fontSize: 20,
+    color: COLORS.WHITE,
+  },
+
+  bottomSpacing: {
+    height: 40,
   },
 });
-

@@ -1,3 +1,8 @@
+/**
+ * HomeScreen - Modern Dashboard dengan Glassmorphism Design
+ * @module screens/MainTabs/HomeScreen
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -10,10 +15,9 @@ import {
   Dimensions,
   Platform,
   Animated,
-  SafeAreaView
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../constants/colors';
+import { COLORS, GRADIENT_COLORS, SHADOWS } from '../../constants/colors';
 import { SPACING } from '../../constants/spacing';
 import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
 import { useAuthStore } from '../../store/authStore';
@@ -21,70 +25,73 @@ import { useUserStore } from '../../store/userStore';
 import { useTreeStore } from '../../store/treeStore';
 import { useAchievementStore } from '../../store/achievementStore';
 
+// Components
+import GlassCard from '../../components/atoms/GlassCard';
+import AnimatedPressable from '../../components/atoms/AnimatedPressable';
+import AnimatedCounter from '../../components/atoms/AnimatedCounter';
+import IconBadge from '../../components/atoms/IconBadge';
+
 const { width, height } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
-  const floatingAnimation = useRef(new Animated.Value(0)).current;
-  const scaleAnimation = useRef(new Animated.Value(1)).current;
-
+  // Animations
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const staggerAnims = useRef([...Array(6)].map(() => new Animated.Value(0))).current;
+  
   // Store hooks
   const { user } = useAuthStore();
   const { profile, stats } = useUserStore();
   const { myTrees, communityTrees, loadCommunityTrees } = useTreeStore();
-  const { initializeDailyQuests, checkAchievements } = useAchievementStore();
+  const { initializeDailyQuests, checkAchievements, getDailyQuestStatus } = useAchievementStore();
+
+  const dailyQuests = getDailyQuestStatus();
 
   useEffect(() => {
-    // Initialize stores
     initializeDailyQuests();
     loadCommunityTrees();
     checkAchievements(stats);
-    // Floating animation for the eco elements
-    const floatingLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatingAnimation, {
-          toValue: 1,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatingAnimation, {
-          toValue: 0,
-          duration: 3000,
-          useNativeDriver: true,
-        }),
-      ])
+
+    // Entrance animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Staggered animation for quick actions
+    const staggerAnimations = staggerAnims.map((anim, index) =>
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 400,
+        delay: index * 80,
+        useNativeDriver: true,
+      })
     );
-
-    // Subtle scale animation for the earth
-    const scaleLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(scaleAnimation, {
-          toValue: 1.05,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnimation, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-
-    floatingLoop.start();
-    scaleLoop.start();
-
-    return () => {
-      floatingLoop.stop();
-      scaleLoop.stop();
-    };
+    Animated.stagger(80, staggerAnimations).start();
   }, []);
 
-  const floatingTransform = floatingAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -10],
-  });
+  // Get greeting based on time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return { text: 'Selamat Pagi', icon: '🌅' };
+    if (hour < 17) return { text: 'Selamat Siang', icon: '☀️' };
+    if (hour < 20) return { text: 'Selamat Sore', icon: '🌆' };
+    return { text: 'Selamat Malam', icon: '🌙' };
+  };
 
-  // User data from store (with fallbacks)
+  const greeting = getGreeting();
+
+  // User data
   const userData = {
     name: profile.name || user?.name || 'Pengguna',
     profileImage: profile.avatar || require('../../../assets/home/avatar.png'),
@@ -92,1208 +99,874 @@ export default function HomeScreen({ navigation }) {
     points: stats.totalPoints || 0,
     streak: stats.streak || 0,
     location: profile.location || 'Makassar',
-    temperature: '27°C',
-    todayTarget: stats.todayTarget || 5
   };
 
-  // Calculate progress
-  const treeProgress = Math.min(Math.round((stats.totalTrees / 50) * 100), 100);
-  const communityCount = myTrees.length + communityTrees.length;
-
+  // Stats data
   const statsData = [
     {
       id: 1,
-      title: 'Pohon Saya',
-      value: String(stats.totalTrees || 0),
-      subtitle: 'pohon',
+      title: 'Pohon',
+      value: stats.totalTrees || 0,
       icon: '🌱',
       color: COLORS.PRIMARY,
-      progress: treeProgress,
-      target: '50'
+      gradient: GRADIENT_COLORS.PRIMARY,
     },
     {
       id: 2,
-      title: 'Komunitas Pohon',
-      value: String(communityCount),
-      subtitle: 'pohon',
-      icon: '🌳',
+      title: 'Poin',
+      value: stats.totalPoints || 0,
+      icon: '⭐',
       color: COLORS.ACCENT,
-      progress: Math.min(Math.round((communityCount / 200) * 100), 100),
-      target: '200'
+      gradient: GRADIENT_COLORS.SUNRISE,
     },
     {
       id: 3,
-      title: 'RTH Makassar',
-      value: '11.47',
-      subtitle: '%',
-      icon: '🏞️',
-      color: COLORS.SUCCESS,
-      progress: 11,
-      target: '100'
+      title: 'Streak',
+      value: stats.streak || 0,
+      suffix: ' hari',
+      icon: '🔥',
+      color: COLORS.ERROR,
+      gradient: GRADIENT_COLORS.SUNSET,
     },
-    {
-      id: 4,
-      title: 'CO₂ Diserap',
-      value: ((stats.co2Absorbed || 0) / 1000).toFixed(2),
-      subtitle: 'ton',
-      icon: '🌍',
-      color: COLORS.SECONDARY,
-      progress: Math.min(Math.round(((stats.co2Absorbed || 0) / 10000) * 100), 100),
-      target: '10'
-    }
   ];
 
+  // Quick actions
   const quickActions = [
     {
       id: 1,
-      title: 'Tanam Pohon Baru',
-      subtitle: '📷',
+      title: 'Tanam Pohon',
       icon: '🌱',
-      color: COLORS.PRIMARY,
-      gradient: [COLORS.PRIMARY, COLORS.PRIMARY_DARK],
-      onPress: () => navigation.navigate('Camera')
+      gradient: ['#10B981', '#059669'],
+      onPress: () => navigation.navigate('Camera'),
     },
     {
       id: 2,
       title: 'Jejak Karbon',
-      subtitle: '🌍',
-      icon: '📊',
-      color: COLORS.ACCENT,
-      gradient: [COLORS.ACCENT, COLORS.ACCENT_DARK],
-      onPress: () => navigation.navigate('CarbonCalculator')
+      icon: '🌍',
+      gradient: ['#3B82F6', '#1D4ED8'],
+      onPress: () => navigation.navigate('CarbonCalculator'),
     },
     {
       id: 3,
-      title: 'Belajar & Tantangan',
-      subtitle: '📚',
+      title: 'Tantangan',
       icon: '🎯',
-      color: COLORS.SUCCESS,
-      gradient: [COLORS.SUCCESS, COLORS.SUCCESS + 'CC'],
-      onPress: () => navigation.navigate('LearnChallenge')
+      gradient: ['#F59E0B', '#D97706'],
+      onPress: () => navigation.navigate('LearnChallenge'),
     },
     {
       id: 4,
       title: 'Eco Wallet',
-      subtitle: '💰',
-      icon: '⭐',
-      color: COLORS.WARNING,
-      gradient: [COLORS.WARNING, COLORS.WARNING + 'DD'],
-      onPress: () => navigation.navigate('EcoWallet')
+      icon: '💎',
+      gradient: ['#8B5CF6', '#6D28D9'],
+      onPress: () => navigation.navigate('EcoWallet'),
     },
     {
       id: 5,
-      title: 'Feed Komunitas',
-      subtitle: '👥',
-      icon: '💬',
-      color: COLORS.INFO,
-      gradient: [COLORS.INFO, COLORS.INFO + 'DD'],
-      onPress: () => navigation.navigate('CommunityFeed')
+      title: 'Komunitas',
+      icon: '👥',
+      gradient: ['#EC4899', '#BE185D'],
+      onPress: () => navigation.navigate('CommunityFeed'),
     },
     {
       id: 6,
       title: 'Leaderboard',
-      subtitle: '🏆',
-      icon: '🥇',
-      color: COLORS.SECONDARY,
-      gradient: [COLORS.SECONDARY, COLORS.SECONDARY_DARK],
-      onPress: () => navigation.navigate('Leaderboard')
-    }
+      icon: '🏆',
+      gradient: ['#F97316', '#C2410C'],
+      onPress: () => navigation.navigate('Leaderboard'),
+    },
   ];
 
-  const achievements = [
-    { id: 1, title: 'Tree Planter', icon: '🌱', earned: true },
-    { id: 2, title: 'Eco Warrior', icon: '⚔️', earned: true },
-    { id: 3, title: 'Green Master', icon: '🥇', earned: false },
-  ];
+  // Header parallax
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 150],
+    outputRange: [280, 180],
+    extrapolate: 'clamp',
+  });
 
-  const renderStatCard = (stat) => (
-    <TouchableOpacity
-      key={stat.id}
+  const headerOpacity = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [1, 0.9],
+    extrapolate: 'clamp',
+  });
+
+  // Render stat card
+  const renderStatCard = (stat, index) => (
+    <AnimatedPressable 
+      key={stat.id} 
       style={styles.statCard}
-      activeOpacity={0.8}
+      onPress={() => navigation.navigate('Statistics')}
     >
       <LinearGradient
-        colors={[stat.color + '15', stat.color + '05']}
+        colors={[COLORS.WHITE, COLORS.GRAY_50]}
         style={styles.statCardGradient}
       >
-        <View style={styles.statCardHeader}>
-          <View style={[styles.statIconContainer, { backgroundColor: stat.color }]}>
-            <Text style={styles.statIcon}>{stat.icon}</Text>
-          </View>
-          <View style={styles.statProgress}>
-            <View style={[styles.progressDot, { backgroundColor: stat.color }]} />
-            <Text style={styles.progressValue}>{stat.progress}%</Text>
-          </View>
+        <View style={[styles.statIconBg, { backgroundColor: stat.color + '15' }]}>
+          <Text style={styles.statIcon}>{stat.icon}</Text>
         </View>
-
-        <Text style={styles.statValue}>{stat.value}</Text>
+        <AnimatedCounter
+          value={stat.value}
+          suffix={stat.suffix || ''}
+          textStyle={styles.statValue}
+          duration={1200}
+          delay={index * 200}
+        />
         <Text style={styles.statTitle}>{stat.title}</Text>
-        <Text style={styles.statSubtitle}>dari {stat.target} {stat.subtitle}</Text>
-
-        <View style={styles.miniProgressBar}>
-          <View
-            style={[
-              styles.miniProgressFill,
-              {
-                width: `${stat.progress}%`,
-                backgroundColor: stat.color
-              }
-            ]}
-          />
-        </View>
       </LinearGradient>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 
-  const renderQuickAction = (action) => (
-    <TouchableOpacity
-      key={action.id}
-      style={styles.quickActionCard}
-      activeOpacity={0.8}
-      onPress={action.onPress}
-    >
-      <LinearGradient
-        colors={action.gradient}
-        style={styles.quickActionGradient}
-      >
-        <Text style={styles.quickActionIcon}>{action.icon}</Text>
-        <Text style={styles.quickActionTitle}>{action.title}</Text>
-        <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
-      </LinearGradient>
-    </TouchableOpacity>
+  // Render quick action
+  const renderQuickAction = (action, index) => {
+    const animStyle = {
+      opacity: staggerAnims[index],
+      transform: [
+        {
+          translateY: staggerAnims[index].interpolate({
+            inputRange: [0, 1],
+            outputRange: [20, 0],
+          }),
+        },
+        {
+          scale: staggerAnims[index].interpolate({
+            inputRange: [0, 1],
+            outputRange: [0.9, 1],
+          }),
+        },
+      ],
+    };
+
+    return (
+      <Animated.View key={action.id} style={[styles.quickActionWrapper, animStyle]}>
+        <AnimatedPressable onPress={action.onPress} scaleValue={0.95}>
+          <LinearGradient
+            colors={action.gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.quickActionCard}
+          >
+            <View style={styles.quickActionGlow} />
+            <Text style={styles.quickActionIcon}>{action.icon}</Text>
+            <Text style={styles.quickActionTitle}>{action.title}</Text>
+          </LinearGradient>
+        </AnimatedPressable>
+      </Animated.View>
+    );
+  };
+
+  // Render daily quest
+  const renderDailyQuest = (quest, index) => (
+    <View key={quest.id} style={styles.questItem}>
+      <View style={[styles.questIconBg, { backgroundColor: quest.isCompleted ? COLORS.SUCCESS + '20' : COLORS.PRIMARY + '15' }]}>
+        <Text style={styles.questIcon}>{quest.icon}</Text>
+      </View>
+      <View style={styles.questContent}>
+        <Text style={styles.questName}>{quest.name}</Text>
+        <View style={styles.questProgressBar}>
+          <View 
+            style={[
+              styles.questProgressFill, 
+              { 
+                width: `${Math.min((quest.progress / quest.requirement.count) * 100, 100)}%`,
+                backgroundColor: quest.isCompleted ? COLORS.SUCCESS : COLORS.PRIMARY,
+              }
+            ]} 
+          />
+        </View>
+      </View>
+      <View style={[styles.questReward, quest.isCompleted && styles.questRewardCompleted]}>
+        <Text style={[styles.questRewardText, quest.isCompleted && { color: COLORS.WHITE }]}>
+          {quest.isCompleted ? '✓' : `+${quest.points}`}
+        </Text>
+      </View>
+    </View>
   );
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.PRIMARY} translucent />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Enhanced Header with Curved Design */}
-      <View style={styles.headerContainer}>
+      {/* Animated Header */}
+      <Animated.View style={[styles.headerContainer, { height: headerHeight, opacity: headerOpacity }]}>
         <LinearGradient
-          colors={[COLORS.PRIMARY, COLORS.PRIMARY_DARK, COLORS.PRIMARY_DARK]}
-          style={styles.header}
+          colors={GRADIENT_COLORS.HEADER}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
+          style={styles.header}
         >
-          {/* Decorative Background Elements */}
-          <View style={styles.decorativeCircle1} />
-          <View style={styles.decorativeCircle2} />
+          {/* Decorative Blobs */}
+          <View style={styles.blob1} />
+          <View style={styles.blob2} />
+          <View style={styles.blob3} />
 
-          <View style={styles.headerContent}>
+          <Animated.View 
+            style={[
+              styles.headerContent,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
             {/* Top Bar */}
             <View style={styles.topBar}>
-              <View style={styles.dateContainer}>
-                <Text style={styles.dateText}>Selasa, 27 Agustus</Text>
-                <Text style={styles.timeText}>14:30 WIB</Text>
+              <View style={styles.greetingContainer}>
+                <Text style={styles.greetingIcon}>{greeting.icon}</Text>
+                <View>
+                  <Text style={styles.greetingText}>{greeting.text},</Text>
+                  <Text style={styles.userName}>{userData.name.split(' ')[0]}</Text>
+                </View>
               </View>
-              <TouchableOpacity style={styles.notificationButton}>
+
+              <AnimatedPressable style={styles.notificationBtn}>
                 <View style={styles.notificationDot} />
                 <Text style={styles.notificationIcon}>🔔</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
 
-            {/* Enhanced Profile Section with Illustration */}
-            <View style={styles.profileSection}>
-              {/* Profile Info on the Right */}
-              <View style={styles.profileInfoContainer}>
-                <View style={styles.profileImageContainer}>
-                  <Image source={userData.profileImage} style={styles.profileImage} />
-                  <View style={styles.statusIndicator} />
+            {/* Profile Card */}
+            <View style={styles.profileCard}>
+              <View style={styles.profileLeft}>
+                <View style={styles.avatarContainer}>
+                  <Image source={userData.profileImage} style={styles.avatar} />
+                  <View style={styles.onlineIndicator} />
                 </View>
-
                 <View style={styles.profileInfo}>
-                  <Text style={styles.greeting}>🌱 Selamat pagi, {userData.name.split(' ')[0]}!</Text>
-                  <Text style={styles.locationWeather}>{userData.location}, {userData.temperature} ☀️</Text>
-                  <Text style={styles.dailyTarget}>Target hari ini: {userData.todayTarget} pohon</Text>
-
-                  <View style={styles.userStats}>
-                    <View style={styles.levelBadge}>
-                      <Text style={styles.userLevel}>{userData.level}</Text>
-                    </View>
-                    <View style={styles.streakContainer}>
-                      <Text style={styles.streakIcon}>🔥</Text>
-                      <Text style={styles.streakText}>{userData.streak} hari</Text>
-                    </View>
+                  <View style={styles.levelBadge}>
+                    <Text style={styles.levelText}>{userData.level}</Text>
                   </View>
+                  <Text style={styles.locationText}>📍 {userData.location}</Text>
+                </View>
+              </View>
 
-                  <View style={styles.pointsContainer}>
-                    <Text style={styles.pointsLabel}>Total Poin</Text>
-                    <Text style={styles.points}>⭐ {userData.points.toLocaleString()}</Text>
-                  </View>
+              <View style={styles.profileRight}>
+                <View style={styles.streakBadge}>
+                  <Text style={styles.streakIcon}>🔥</Text>
+                  <Text style={styles.streakValue}>{userData.streak}</Text>
+                  <Text style={styles.streakLabel}>hari</Text>
                 </View>
               </View>
             </View>
-          </View>
+          </Animated.View>
         </LinearGradient>
 
-        {/* Curved Bottom Design */}
+        {/* Curved Bottom */}
         <View style={styles.curvedBottom} />
-      </View>
+      </Animated.View>
 
-      <ScrollView
-        style={styles.content}
+      {/* Scrollable Content */}
+      <Animated.ScrollView
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
+        scrollEventThrottle={16}
       >
-        {/* Quick Actions Grid */}
+        {/* Stats Row */}
+        <View style={styles.statsContainer}>
+          {statsData.map(renderStatCard)}
+        </View>
+
+        {/* Quick Actions */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Aksi Cepat ⚡</Text>
+            <Text style={styles.sectionTitle}>Aksi Cepat</Text>
+            <Text style={styles.sectionEmoji}>⚡</Text>
           </View>
           <View style={styles.quickActionsGrid}>
             {quickActions.map(renderQuickAction)}
           </View>
         </View>
 
-        {/* Modern Stats Section */}
+        {/* Daily Quests */}
+        {dailyQuests.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Misi Hari Ini</Text>
+              <Text style={styles.sectionEmoji}>🎯</Text>
+            </View>
+            <GlassCard variant="light" padding="md" style={styles.questsCard}>
+              {dailyQuests.map(renderDailyQuest)}
+            </GlassCard>
+          </View>
+        )}
+
+        {/* Impact Card */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Progres Kontribusi 📈</Text>
-            <TouchableOpacity
-              style={styles.seeAllButton}
-              onPress={() => navigation.navigate('Statistics')}
+            <Text style={styles.sectionTitle}>Dampak Kontribusimu</Text>
+            <Text style={styles.sectionEmoji}>🌍</Text>
+          </View>
+          <AnimatedPressable onPress={() => navigation.navigate('Statistics')}>
+            <LinearGradient
+              colors={['#059669', '#047857', '#065F46']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.impactCard}
             >
+              <View style={styles.impactDecorative} />
+              <View style={styles.impactContent}>
+                <View style={styles.impactRow}>
+                  <View style={styles.impactItem}>
+                    <Text style={styles.impactIcon}>🌳</Text>
+                    <AnimatedCounter
+                      value={stats.totalTrees || 0}
+                      textStyle={styles.impactValue}
+                      duration={1500}
+                    />
+                    <Text style={styles.impactLabel}>Pohon Ditanam</Text>
+                  </View>
+                  <View style={styles.impactDivider} />
+                  <View style={styles.impactItem}>
+                    <Text style={styles.impactIcon}>💨</Text>
+                    <AnimatedCounter
+                      value={stats.co2Absorbed || 0}
+                      decimals={1}
+                      suffix=" kg"
+                      textStyle={styles.impactValue}
+                      duration={1500}
+                      delay={200}
+                    />
+                    <Text style={styles.impactLabel}>CO₂ Diserap</Text>
+                  </View>
+                </View>
+                <View style={styles.impactFooter}>
+                  <Text style={styles.impactFooterText}>
+                    Setara dengan {Math.round((stats.co2Absorbed || 0) / 21.77)} pohon dewasa per tahun 🌲
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </AnimatedPressable>
+        </View>
+
+        {/* Recent Activity */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Aktivitas Terbaru</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('CommunityFeed')}>
               <Text style={styles.seeAllText}>Lihat Semua</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.statsScrollContainer}
-          >
-            {statsData.map(renderStatCard)}
-          </ScrollView>
-        </View>
-
-        {/* Floating Achievement Card */}
-        <View style={styles.floatingCard}>
-          <LinearGradient
-            colors={['#FFD700', '#FFA500', '#FF8C00']}
-            style={styles.achievementCard}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.achievementHeader}>
-              <Text style={styles.achievementBigIcon}>🏆</Text>
-              <View style={styles.achievementTextContainer}>
-                <Text style={styles.achievementTitle}>Level Baru Terbuka!</Text>
-                <Text style={styles.achievementSubtitle}>Selamat! Anda naik ke "Eco Champion"</Text>
-              </View>
-            </View>
-            <View style={styles.achievementBadges}>
-              {achievements.map(achievement => (
-                <View key={achievement.id} style={[
-                  styles.achievementBadge,
-                  { opacity: achievement.earned ? 1 : 0.4 }
-                ]}>
-                  <Text style={styles.badgeIcon}>{achievement.icon}</Text>
-                </View>
-              ))}
-            </View>
-          </LinearGradient>
-        </View>
-
-        {/* Interactive Daily Challenge */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Misi Harian 🎯</Text>
-          <View style={styles.challengeCard}>
-            <LinearGradient
-              colors={[COLORS.BACKGROUND, COLORS.WHITE]}
-              style={styles.challengeGradient}
-            >
-              <View style={styles.challengeHeader}>
-                <View style={styles.challengeIconContainer}>
-                  <Text style={styles.challengeIcon}>🌱</Text>
-                </View>
-                <View style={styles.challengeInfo}>
-                  <Text style={styles.challengeTitle}>Tanam Bibit Hari Ini</Text>
-                  <Text style={styles.challengeDescription}>
-                    Berkontribusi untuk bumi yang lebih hijau
-                  </Text>
-                  <View style={styles.challengeReward}>
-                    <Text style={styles.rewardText}>+50 poin • +1 bibit</Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.challengeProgress}>
-                <View style={styles.progressHeader}>
-                  <Text style={styles.progressLabel}>Progress</Text>
-                  <Text style={styles.progressPercentage}>3/5 selesai</Text>
-                </View>
-                <View style={styles.progressBarContainer}>
-                  <View style={styles.progressBar}>
-                    <LinearGradient
-                      colors={[COLORS.PRIMARY, COLORS.PRIMARY_DARK]}
-                      style={[styles.progressFill, { width: '60%' }]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                    />
-                  </View>
-                </View>
-
-                <TouchableOpacity style={styles.challengeButton}>
-                  <LinearGradient
-                    colors={[COLORS.PRIMARY, COLORS.PRIMARY_DARK]}
-                    style={styles.challengeButtonGradient}
-                  >
-                    <Text style={styles.challengeButtonText}>Lanjutkan Misi</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </LinearGradient>
-          </View>
-        </View>
-
-        {/* Recent Activity - Updated for Sedekah Hijau */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Aktivitas Terbaru 📋</Text>
-          <View style={styles.activityCard}>
+          <GlassCard variant="light" padding="md">
             <View style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Text>📸</Text>
+              <View style={[styles.activityIcon, { backgroundColor: COLORS.PRIMARY + '15' }]}>
+                <Text>🌱</Text>
               </View>
               <View style={styles.activityContent}>
                 <Text style={styles.activityTitle}>Budi menanam Mahoni</Text>
-                <Text style={styles.activityTime}>Taman Kota, 2 jam lalu</Text>
+                <Text style={styles.activityTime}>Taman Kota • 2 jam lalu</Text>
               </View>
-              <Text style={styles.activityPoints}>🌱</Text>
             </View>
 
             <View style={styles.activityDivider} />
 
             <View style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Text>📸</Text>
-              </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Sari menanam Mangga</Text>
-                <Text style={styles.activityTime}>Jl. Perintis, 4 jam lalu</Text>
-              </View>
-              <Text style={styles.activityPoints}>🌳</Text>
-            </View>
-
-            <View style={styles.activityDivider} />
-
-            <View style={styles.activityItem}>
-              <View style={styles.activityIcon}>
+              <View style={[styles.activityIcon, { backgroundColor: COLORS.ACCENT + '15' }]}>
                 <Text>🏆</Text>
               </View>
               <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>Anda mencapai target minggu!</Text>
-                <Text style={styles.activityTime}>5 pohon telah ditanam</Text>
+                <Text style={styles.activityTitle}>Target mingguan tercapai!</Text>
+                <Text style={styles.activityTime}>+100 poin bonus</Text>
               </View>
-              <Text style={styles.activityPoints}>⭐</Text>
             </View>
-          </View>
-        </View>
 
-        {/* Mini Map Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Peta RTH Terdekat 🗺️</Text>
-          <View style={styles.mapCard}>
-            <View style={styles.miniMap}>
-              <Text style={styles.mapPlaceholder}>🗺️ MAP VIEW</Text>
-              <View style={styles.mapPins}>
-                <Text style={styles.mapPin}>📍</Text>
-                <Text style={styles.mapPin}>📍</Text>
-                <Text style={styles.mapPin}>📍</Text>
-                <Text style={styles.mapPin}>📍</Text>
-                <Text style={styles.mapPin}>📍</Text>
+            <View style={styles.activityDivider} />
+
+            <View style={styles.activityItem}>
+              <View style={[styles.activityIcon, { backgroundColor: COLORS.INFO + '15' }]}>
+                <Text>📍</Text>
               </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>12 lokasi RTH terdekat</Text>
+                <Text style={styles.activityTime}>Dalam radius 5km</Text>
+              </View>
+              <TouchableOpacity 
+                style={styles.activityAction}
+                onPress={() => navigation.navigate('Map')}
+              >
+                <Text style={styles.activityActionText}>Lihat →</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={styles.mapInfo}>12 lokasi RTH dalam radius 5km</Text>
-            <TouchableOpacity
-              style={styles.viewMapButton}
-              onPress={() => navigation.navigate('Map')}
-            >
-              <Text style={styles.viewMapText}>Lihat Peta Lengkap</Text>
-            </TouchableOpacity>
-          </View>
+          </GlassCard>
         </View>
 
         {/* Bottom Spacing */}
         <View style={styles.bottomSpacing} />
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
-} const styles = StyleSheet.create({
+}
+
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
   },
 
-  // Enhanced Header Styles
+  // Header Styles
   headerContainer: {
-    position: 'relative',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 45,
-    paddingHorizontal: SPACING.PADDING.XL,
-    paddingBottom: 40,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    position: 'relative',
+    flex: 1,
+    paddingTop: Platform.OS === 'ios' ? 60 : 48,
+    paddingHorizontal: 20,
     overflow: 'hidden',
   },
-  decorativeCircle1: {
+  blob1: {
     position: 'absolute',
-    top: -50,
+    top: -40,
     right: -30,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  blob2: {
+    position: 'absolute',
+    bottom: 20,
+    left: -50,
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: COLORS.WHITE + '10',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  decorativeCircle2: {
+  blob3: {
     position: 'absolute',
-    bottom: -20,
-    left: -40,
+    top: 80,
+    left: '40%',
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: COLORS.WHITE + '08',
+    backgroundColor: 'rgba(255,255,255,0.03)',
   },
   headerContent: {
-    zIndex: 2,
+    flex: 1,
   },
+  curvedBottom: {
+    position: 'absolute',
+    bottom: -2,
+    left: 0,
+    right: 0,
+    height: 30,
+    backgroundColor: COLORS.BACKGROUND,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+  },
+
+  // Top Bar
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.MARGIN.XL,
+    marginBottom: 20,
   },
-  dateContainer: {
-    flex: 1,
+  greetingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  dateText: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-    opacity: 0.9,
+  greetingIcon: {
+    fontSize: 28,
+    marginRight: 12,
   },
-  timeText: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.WHITE,
+  greetingText: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    opacity: 0.7,
+  },
+  userName: {
+    fontSize: 22,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
     marginTop: 2,
   },
-  notificationButton: {
-    position: 'relative',
-    padding: 8,
-    backgroundColor: COLORS.WHITE + '15',
-    borderRadius: 12,
+  notificationBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   notificationDot: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 10,
+    right: 10,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: COLORS.ACCENT,
+    borderWidth: 2,
+    borderColor: COLORS.PRIMARY,
     zIndex: 1,
   },
   notificationIcon: {
-    fontSize: 20,
-  },
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.MARGIN.LG,
+    fontSize: 22,
   },
 
-  // Eco Illustration Styles
-  illustrationContainer: {
-    width: width * 0.35,
-    height: 120,
-    marginRight: SPACING.MARGIN.LG,
+  // Profile Card
+  profileCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
-  ecoIllustration: {
+  profileLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 14,
+  },
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.5)',
+  },
+  onlineIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#10B981',
+    borderWidth: 3,
+    borderColor: COLORS.PRIMARY,
+  },
+  profileInfo: {
+    gap: 6,
+  },
+  levelBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  levelText: {
+    fontSize: 12,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+  },
+  locationText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.75)',
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+  },
+  profileRight: {},
+  streakBadge: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 16,
+  },
+  streakIcon: {
+    fontSize: 20,
+  },
+  streakValue: {
+    fontSize: 22,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    marginTop: 2,
+  },
+  streakLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
+
+  // Scroll View
+  scrollView: {
     flex: 1,
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  earthContainer: {
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
+  scrollContent: {
+    paddingTop: 300,
+    paddingHorizontal: 20,
+    paddingBottom: 100,
   },
-  homeIconContainer: {
+
+  // Stats
+  statsContainer: {
+    flexDirection: 'row',
+    marginBottom: 28,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: 20,
+    overflow: 'hidden',
+    ...SHADOWS.MEDIUM,
+  },
+  statCardGradient: {
+    padding: 16,
+    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: COLORS.BORDER_LIGHT,
+  },
+  statIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
   },
-  earthEmoji: {
-    fontSize: 60,
-    textAlign: 'center',
+  statIcon: {
+    fontSize: 22,
   },
-  peopleAroundEarth: {
-    position: 'absolute',
-    width: 100,
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  personEmoji1: {
-    position: 'absolute',
-    top: -15,
-    left: 20,
-    fontSize: 16,
-    transform: [{ rotate: '-15deg' }],
-  },
-  personEmoji2: {
-    position: 'absolute',
-    top: 10,
-    right: -10,
-    fontSize: 16,
-    transform: [{ rotate: '30deg' }],
-  },
-  personEmoji3: {
-    position: 'absolute',
-    bottom: -10,
-    left: 15,
-    fontSize: 16,
-    transform: [{ rotate: '-30deg' }],
-  },
-  personEmoji4: {
-    position: 'absolute',
-    bottom: 5,
-    right: 10,
-    fontSize: 16,
-    transform: [{ rotate: '15deg' }],
-  },
-  personEmoji5: {
-    position: 'absolute',
-    top: 5,
-    left: -5,
-    fontSize: 16,
-    transform: [{ rotate: '-45deg' }],
-  },
-  floatingElements: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-  },
-  floatingLeaf1: {
-    position: 'absolute',
-    top: 10,
-    right: 20,
-    fontSize: 20,
-    opacity: 0.8,
-    transform: [{ rotate: '15deg' }],
-  },
-  floatingLeaf2: {
-    position: 'absolute',
-    bottom: 20,
-    left: 10,
-    fontSize: 18,
-    opacity: 0.7,
-    transform: [{ rotate: '-20deg' }],
-  },
-  floatingLeaf3: {
-    position: 'absolute',
-    top: 30,
-    left: -5,
-    fontSize: 16,
-    opacity: 0.6,
-    transform: [{ rotate: '45deg' }],
-  },
-
-  // Updated Profile Info Styles
-  profileInfoContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  profileImageContainer: {
-    position: 'relative',
-    marginRight: SPACING.MARGIN.MD,
-  },
-  profileImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    borderWidth: 3,
-    borderColor: COLORS.WHITE,
-  },
-  statusIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#4CAF50',
-    borderWidth: 2,
-    borderColor: COLORS.WHITE,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  greeting: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.WHITE,
+  statValue: {
+    fontSize: 24,
+    color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginBottom: 4,
   },
-  locationWeather: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    opacity: 0.9,
-    marginBottom: 4,
-  },
-  dailyTarget: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-    marginBottom: SPACING.MARGIN.SM,
-  },
-  userName: {
-    fontSize: FONT_SIZES.H4,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginBottom: SPACING.MARGIN.SM,
-  },
-  userStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.MARGIN.SM,
-  },
-  levelBadge: {
-    backgroundColor: COLORS.WHITE + '25',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginRight: SPACING.MARGIN.SM,
-  },
-  userLevel: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-  },
-  streakContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.WHITE + '15',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  streakIcon: {
-    fontSize: 14,
-    marginRight: 4,
-  },
-  streakText: {
-    fontSize: FONT_SIZES.TINY,
-    color: COLORS.WHITE,
+  statTitle: {
+    fontSize: 12,
+    color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-  },
-  pointsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pointsLabel: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    opacity: 0.8,
-  },
-  points: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginLeft: SPACING.MARGIN.SM,
-  },
-  curvedBottom: {
-    position: 'absolute',
-    bottom: -1,
-    left: 0,
-    right: 0,
-    height: 20,
-    backgroundColor: COLORS.BACKGROUND,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+    marginTop: 4,
   },
 
-  // Content Styles
-  content: {
-    flex: 1,
-    marginTop: -20,
-  },
-  contentContainer: {
-    paddingTop: 30,
-    paddingHorizontal: SPACING.PADDING.XL,
-    paddingBottom: 100, // Extra space for bottom tab navigation
-  },
+  // Sections
   section: {
-    marginBottom: SPACING.MARGIN.XXXL,
+    marginBottom: 28,
   },
   sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.MARGIN.LG,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: FONT_SIZES.H5,
+    fontSize: 18,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
+    flex: 1,
   },
-  seeAllButton: {
-    padding: 8,
+  sectionEmoji: {
+    fontSize: 20,
   },
   seeAllText: {
-    fontSize: FONT_SIZES.SMALL,
+    fontSize: 14,
     color: COLORS.PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
   },
 
-  // Enhanced Stats Styles
-  statsScrollContainer: {
-    paddingRight: SPACING.PADDING.XL,
-  },
-  statCard: {
-    width: width * 0.4,
-    marginRight: SPACING.MARGIN.LG,
-  },
-  statCardGradient: {
-    borderRadius: 20,
-    padding: SPACING.PADDING.LG,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  statCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.MARGIN.MD,
-  },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statIcon: {
-    fontSize: 20,
-  },
-  statProgress: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  progressDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  progressValue: {
-    fontSize: FONT_SIZES.TINY,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-  },
-  statValue: {
-    fontSize: FONT_SIZES.H3,
-    color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginBottom: 4,
-  },
-  statTitle: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-    marginBottom: 2,
-  },
-  statSubtitle: {
-    fontSize: FONT_SIZES.TINY,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    marginBottom: SPACING.MARGIN.SM,
-  },
-  miniProgressBar: {
-    height: 4,
-    backgroundColor: COLORS.GRAY_200,
-    borderRadius: 2,
-    marginTop: SPACING.MARGIN.SM,
-  },
-  miniProgressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-
-  // Enhanced Quick Actions
+  // Quick Actions
   quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: 12,
+  },
+  quickActionWrapper: {
+    width: (width - 40 - 24) / 3,
   },
   quickActionCard: {
-    width: (width - SPACING.PADDING.XL * 2 - SPACING.MARGIN.MD) / 2,
-    marginBottom: SPACING.MARGIN.MD,
+    aspectRatio: 1,
     borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     overflow: 'hidden',
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...SHADOWS.MEDIUM,
   },
-  quickActionGradient: {
-    padding: SPACING.PADDING.LG,
-    alignItems: 'center',
-    minHeight: 120,
-    justifyContent: 'center',
-  },
-  quickActionIcon: {
-    fontSize: 32,
-    marginBottom: SPACING.MARGIN.SM,
-  },
-  quickActionTitle: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  quickActionSubtitle: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    textAlign: 'center',
-    opacity: 0.9,
-  },
-
-  // Floating Achievement Card
-  floatingCard: {
-    marginBottom: SPACING.MARGIN.XXXL,
-  },
-  achievementCard: {
-    borderRadius: 24,
-    padding: SPACING.PADDING.XL,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  achievementHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.MARGIN.LG,
-  },
-  achievementBigIcon: {
-    fontSize: 48,
-    marginRight: SPACING.MARGIN.LG,
-  },
-  achievementTextContainer: {
-    flex: 1,
-  },
-  achievementTitle: {
-    fontSize: FONT_SIZES.H5,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginBottom: 4,
-  },
-  achievementSubtitle: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    opacity: 0.9,
-  },
-  achievementBadges: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  achievementBadge: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: COLORS.WHITE + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: SPACING.MARGIN.SM,
-  },
-  badgeIcon: {
-    fontSize: 24,
-  },
-
-  // Enhanced Challenge Card
-  challengeCard: {
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  challengeGradient: {
-    padding: SPACING.PADDING.XL,
-  },
-  challengeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.MARGIN.XL,
-  },
-  challengeIconContainer: {
+  quickActionGlow: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: COLORS.PRIMARY + '15',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  quickActionIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  quickActionTitle: {
+    fontSize: 11,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+    textAlign: 'center',
+  },
+
+  // Daily Quests
+  questsCard: {
+    ...SHADOWS.MEDIUM,
+  },
+  questItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.BORDER_LIGHT,
+  },
+  questIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.MARGIN.LG,
+    marginRight: 14,
   },
-  challengeIcon: {
-    fontSize: 30,
+  questIcon: {
+    fontSize: 22,
   },
-  challengeInfo: {
+  questContent: {
     flex: 1,
   },
-  challengeTitle: {
-    fontSize: FONT_SIZES.H5,
+  questName: {
+    fontSize: 14,
     color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginBottom: 6,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    marginBottom: 8,
   },
-  challengeDescription: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    marginBottom: SPACING.MARGIN.SM,
+  questProgressBar: {
+    height: 6,
+    backgroundColor: COLORS.GRAY_200,
+    borderRadius: 3,
+    overflow: 'hidden',
   },
-  challengeReward: {
-    backgroundColor: COLORS.PRIMARY + '10',
+  questProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  questReward: {
+    backgroundColor: COLORS.PRIMARY + '15',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-    alignSelf: 'flex-start',
+    borderRadius: 12,
+    marginLeft: 12,
   },
-  rewardText: {
-    fontSize: FONT_SIZES.SMALL,
+  questRewardCompleted: {
+    backgroundColor: COLORS.SUCCESS,
+  },
+  questRewardText: {
+    fontSize: 12,
     color: COLORS.PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-  },
-  challengeProgress: {
-    alignItems: 'stretch',
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.MARGIN.SM,
-  },
-  progressLabel: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-  },
-  progressPercentage: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-  },
-  progressBarContainer: {
-    marginBottom: SPACING.MARGIN.LG,
-  },
-  progressBar: {
-    height: 12,
-    backgroundColor: COLORS.GRAY_200,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 6,
-  },
-  challengeButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  challengeButtonGradient: {
-    paddingVertical: SPACING.PADDING.LG,
-    alignItems: 'center',
-  },
-  challengeButtonText: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
 
-  // Activity Card
-  activityCard: {
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 20,
-    padding: SPACING.PADDING.LG,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+  // Impact Card
+  impactCard: {
+    borderRadius: 24,
+    padding: 24,
+    overflow: 'hidden',
+    ...SHADOWS.LARGE,
   },
+  impactDecorative: {
+    position: 'absolute',
+    top: -30,
+    right: -30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  impactContent: {},
+  impactRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
+  },
+  impactItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  impactIcon: {
+    fontSize: 36,
+    marginBottom: 10,
+  },
+  impactValue: {
+    fontSize: 28,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  impactLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    marginTop: 4,
+  },
+  impactDivider: {
+    width: 1,
+    height: '80%',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center',
+  },
+  impactFooter: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    padding: 12,
+  },
+  impactFooterText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.9)',
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    textAlign: 'center',
+  },
+
+  // Activity
   activityItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.PADDING.SM,
+    paddingVertical: 14,
   },
   activityIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.BACKGROUND,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.MARGIN.LG,
+    marginRight: 14,
   },
   activityContent: {
     flex: 1,
   },
   activityTitle: {
-    fontSize: FONT_SIZES.REGULAR,
+    fontSize: 14,
     color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-    marginBottom: 2,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
   activityTime: {
-    fontSize: FONT_SIZES.SMALL,
+    fontSize: 12,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
-  },
-  activityPoints: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    marginTop: 2,
   },
   activityDivider: {
     height: 1,
-    backgroundColor: COLORS.BORDER,
-    marginVertical: SPACING.MARGIN.SM,
+    backgroundColor: COLORS.BORDER_LIGHT,
   },
-
-  // Map Section Styles
-  mapCard: {
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 20,
-    padding: SPACING.PADDING.LG,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  miniMap: {
-    height: 120,
-    backgroundColor: COLORS.BACKGROUND,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    marginBottom: SPACING.MARGIN.MD,
-  },
-  mapPlaceholder: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-  },
-  mapPins: {
-    position: 'absolute',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: '80%',
-    height: '80%',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  mapPin: {
-    fontSize: 16,
-  },
-  mapInfo: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    textAlign: 'center',
-    marginBottom: SPACING.MARGIN.MD,
-  },
-  viewMapButton: {
+  activityAction: {
     backgroundColor: COLORS.PRIMARY + '15',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 12,
-    alignItems: 'center',
   },
-  viewMapText: {
-    fontSize: FONT_SIZES.MEDIUM,
+  activityActionText: {
+    fontSize: 12,
     color: COLORS.PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
   },
 
+  // Bottom
   bottomSpacing: {
-    height: 80, // Increased spacing for better separation from bottom tabs
-  },
-
-  // Mini Map Styles
-  mapCard: {
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 20,
-    padding: SPACING.PADDING.LG,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  miniMap: {
-    height: 120,
-    backgroundColor: COLORS.BACKGROUND,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SPACING.MARGIN.MD,
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  mapPlaceholder: {
-    fontSize: FONT_SIZES.H5,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginBottom: SPACING.MARGIN.SM,
-  },
-  mapPins: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mapPin: {
-    position: 'absolute',
-    fontSize: 20,
-  },
-  mapInfo: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    textAlign: 'center',
-    marginBottom: SPACING.MARGIN.MD,
-  },
-  viewMapButton: {
-    backgroundColor: COLORS.PRIMARY + '15',
-    borderRadius: 12,
-    paddingVertical: SPACING.PADDING.SM,
-    alignItems: 'center',
-  },
-  viewMapText: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+    height: 20,
   },
 });
+

@@ -1,25 +1,92 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Dimensions, Text } from 'react-native';
+/**
+ * CustomTabBar - Modern floating tab bar dengan glassmorphism
+ * @module components/TabNavigation/CustomTabBar
+ */
+
+import React, { useRef, useEffect } from 'react';
+import { 
+  View, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Dimensions, 
+  Text, 
+  Animated,
+  Platform,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import HomeIcon from './HomeIcon';
 import ScanIcon from './ScanIcon';
 import ProfileIcon from './ProfileIcon';
+import { COLORS, SHADOWS, GRADIENT_COLORS } from '../../constants/colors';
+import { FONT_FAMILIES } from '../../constants/typography';
 
 const { width } = Dimensions.get('window');
 
 export default function CustomTabBar({ state, descriptors, navigation }) {
-  // Hide tab bar when on Scan or Camera screen
+  const scanButtonAnim = useRef(new Animated.Value(1)).current;
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Pulse animation for scan button
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  // Hide tab bar when on Camera screen
   const currentRoute = state.routes[state.index];
-  if (currentRoute.name === 'Scan' || currentRoute.name === 'Camera') {
+  if (currentRoute.name === 'Camera') {
     return null;
   }
 
+  const handleScanPress = () => {
+    // Scale animation on press
+    Animated.sequence([
+      Animated.spring(scanButtonAnim, {
+        toValue: 0.9,
+        useNativeDriver: true,
+        speed: 50,
+      }),
+      Animated.spring(scanButtonAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 50,
+      }),
+    ]).start();
+    
+    navigation.navigate('Camera');
+  };
+
+  const pulseScale = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.15],
+  });
+
+  const pulseOpacity = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.6, 0],
+  });
+
   return (
     <View style={styles.container}>
-      {/* Background with modern curved design */}
-      <View style={styles.background} />
-
-      {/* Scanner button notch background */}
-      <View style={styles.scanNotch} />
+      {/* Glass Background */}
+      <View style={styles.background}>
+        <LinearGradient
+          colors={['rgba(255,255,255,0.95)', 'rgba(255,255,255,0.98)']}
+          style={styles.backgroundGradient}
+        />
+      </View>
 
       {/* Tab buttons */}
       <View style={styles.tabContainer}>
@@ -39,17 +106,17 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
             }
           };
 
-          // Skip rendering the scan button here, it will be rendered separately
-          if (route.name === 'Scan') {
-            return <View style={styles.scanPlaceholder} key={route.key} />;
+          // Center placeholder for scan button
+          if (route.name === 'Camera') {
+            return <View style={styles.centerPlaceholder} key={route.key} />;
           }
 
           const renderIcon = () => {
             switch (route.name) {
               case 'Home':
-                return <HomeIcon focused={isFocused} size={22} />;
+                return <HomeIcon focused={isFocused} size={24} />;
               case 'Profile':
-                return <ProfileIcon focused={isFocused} size={22} />;
+                return <ProfileIcon focused={isFocused} size={24} />;
               default:
                 return null;
             }
@@ -58,9 +125,9 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
           const getTabLabel = () => {
             switch (route.name) {
               case 'Home':
-                return 'Home';
+                return 'Beranda';
               case 'Profile':
-                return 'Profile';
+                return 'Profil';
               default:
                 return '';
             }
@@ -71,32 +138,63 @@ export default function CustomTabBar({ state, descriptors, navigation }) {
               key={route.key}
               onPress={onPress}
               style={styles.tabButton}
-              activeOpacity={0.6}
+              activeOpacity={0.7}
             >
-              <View style={[styles.iconContainer, isFocused && styles.focusedIconContainer]}>
+              <Animated.View 
+                style={[
+                  styles.iconWrapper,
+                  isFocused && styles.iconWrapperFocused,
+                ]}
+              >
                 {renderIcon()}
-              </View>
-              <Text style={[styles.tabLabel, isFocused && styles.focusedTabLabel]}>
+              </Animated.View>
+              <Text style={[styles.tabLabel, isFocused && styles.tabLabelFocused]}>
                 {getTabLabel()}
               </Text>
+              {isFocused && <View style={styles.focusIndicator} />}
             </TouchableOpacity>
           );
         })}
       </View>
 
-      {/* Modern Floating Scanner Button */}
-      <TouchableOpacity
-        style={styles.scanButtonContainer}
-        onPress={() => navigation.navigate('Camera')}
-        activeOpacity={0.8}
-      >
-        <View style={styles.scanButtonOuter}>
-          <View style={styles.scanButton}>
-            <ScanIcon size={28} />
-          </View>
-        </View>
-        <Text style={styles.scanLabel}>Scan</Text>
-      </TouchableOpacity>
+      {/* Floating Scan Button */}
+      <View style={styles.scanButtonWrapper}>
+        {/* Pulse Ring */}
+        <Animated.View 
+          style={[
+            styles.pulseRing,
+            {
+              transform: [{ scale: pulseScale }],
+              opacity: pulseOpacity,
+            },
+          ]}
+        />
+        
+        <TouchableOpacity
+          onPress={handleScanPress}
+          activeOpacity={0.9}
+          style={styles.scanButtonTouchable}
+        >
+          <Animated.View 
+            style={[
+              styles.scanButtonOuter,
+              { transform: [{ scale: scanButtonAnim }] },
+            ]}
+          >
+            <LinearGradient
+              colors={GRADIENT_COLORS.PRIMARY}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.scanButton}
+            >
+              <View style={styles.scanButtonGlow} />
+              <ScanIcon size={28} color={COLORS.WHITE} />
+            </LinearGradient>
+          </Animated.View>
+        </TouchableOpacity>
+        
+        <Text style={styles.scanLabel}>Tanam</Text>
+      </View>
     </View>
   );
 }
@@ -106,127 +204,121 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     width: width,
-    height: 85,
+    height: Platform.OS === 'ios' ? 90 : 80,
+    paddingBottom: Platform.OS === 'ios' ? 10 : 0,
   },
   background: {
     position: 'absolute',
     bottom: 0,
     width: '100%',
-    height: 85,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -3,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 12,
+    height: '100%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+    ...SHADOWS.LARGE,
   },
-  scanNotch: {
-    position: 'absolute',
-    top: -15,
-    left: width / 2 - 35,
-    width: 70,
-    height: 30,
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 35,
-    borderTopRightRadius: 35,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+  backgroundGradient: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
+    borderBottomWidth: 0,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
   },
   tabContainer: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingHorizontal: 15,
+    paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 8,
   },
   tabButton: {
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 6,
+    position: 'relative',
   },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  iconWrapper: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  focusedIconContainer: {
-    backgroundColor: '#f0f9f1',
-    transform: [{ scale: 1.1 }],
+  iconWrapperFocused: {
+    backgroundColor: COLORS.PRIMARY + '12',
   },
   tabLabel: {
     fontSize: 11,
-    fontWeight: '500',
-    color: '#9CA3AF',
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    color: COLORS.TEXT_DISABLED,
     marginTop: 2,
   },
-  focusedTabLabel: {
-    color: '#52a563',
-    fontWeight: '600',
+  tabLabelFocused: {
+    color: COLORS.PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
   },
-  scanPlaceholder: {
-    flex: 1,
-  },
-  scanButtonContainer: {
+  focusIndicator: {
     position: 'absolute',
-    top: -25,
-    left: width / 2 - 30,
+    bottom: 0,
+    width: 20,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: COLORS.PRIMARY,
+  },
+  centerPlaceholder: {
+    flex: 1.2,
+  },
+  scanButtonWrapper: {
+    position: 'absolute',
+    top: -28,
+    left: width / 2 - 36,
     alignItems: 'center',
   },
+  pulseRing: {
+    position: 'absolute',
+    top: 0,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.PRIMARY,
+  },
+  scanButtonTouchable: {},
   scanButtonOuter: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#FFFFFF',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: COLORS.WHITE,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#52a563',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
+    padding: 4,
+    ...SHADOWS.GLOW_PRIMARY,
   },
   scanButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#52a563',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    overflow: 'hidden',
+  },
+  scanButtonGlow: {
+    position: 'absolute',
+    top: -10,
+    right: -10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
   scanLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#52a563',
-    marginTop: 4,
-    textAlign: 'center',
+    fontSize: 11,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+    color: COLORS.PRIMARY,
+    marginTop: 6,
   },
 });

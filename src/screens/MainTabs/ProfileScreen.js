@@ -1,9 +1,9 @@
 /**
- * Profile Screen - Halaman profil pengguna dengan integrasi store
+ * ProfileScreen - Modern Profile dengan Glassmorphism Design
  * @module screens/MainTabs/ProfileScreen
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,10 +16,10 @@ import {
   Platform,
   Switch,
   Alert,
-  FlatList,
+  Animated,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../constants/colors';
+import { COLORS, GRADIENT_COLORS, SHADOWS } from '../../constants/colors';
 import { SPACING } from '../../constants/spacing';
 import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
 import { useAuthStore } from '../../store/authStore';
@@ -27,24 +27,65 @@ import { useUserStore } from '../../store/userStore';
 import { useTreeStore } from '../../store/treeStore';
 import { useAchievementStore, ACHIEVEMENTS } from '../../store/achievementStore';
 
+// Components
+import GlassCard from '../../components/atoms/GlassCard';
+import AnimatedPressable from '../../components/atoms/AnimatedPressable';
+import AnimatedCounter from '../../components/atoms/AnimatedCounter';
+
 const { width } = Dimensions.get('window');
 
 export default function ProfileScreen({ navigation }) {
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+  const ringAnim = useRef(new Animated.Value(0)).current;
+
   // Store hooks
   const { user, logout } = useAuthStore();
   const { profile, stats, settings, updateSettings, resetUser } = useUserStore();
-  const { myTrees } = useTreeStore();
-  const { getAchievementDetails, initializeDailyQuests, getDailyQuestStatus } = useAchievementStore();
+  const { myTrees, clearTrees } = useTreeStore();
+  const { getAchievementDetails, initializeDailyQuests, getDailyQuestStatus, resetAchievements } = useAchievementStore();
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(settings.notifications);
   const [darkModeEnabled, setDarkModeEnabled] = useState(settings.darkMode);
 
   useEffect(() => {
     initializeDailyQuests();
+
+    // Entrance animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Ring animation loop
+    Animated.loop(
+      Animated.timing(ringAnim, {
+        toValue: 1,
+        duration: 3000,
+        useNativeDriver: true,
+      })
+    ).start();
   }, []);
 
   const achievements = getAchievementDetails();
   const dailyQuests = getDailyQuestStatus();
+  const unlockedCount = achievements.filter(a => a.isUnlocked).length;
+
+  // Calculate level progress
+  const levelPoints = [0, 100, 300, 600, 1000, 2000, 5000, 10000];
+  const currentLevelMin = levelPoints[stats.level - 1] || 0;
+  const nextLevelMin = levelPoints[stats.level] || 10000;
+  const levelProgress = ((stats.totalPoints - currentLevelMin) / (nextLevelMin - currentLevelMin)) * 100;
 
   // Handle logout
   const handleLogout = () => {
@@ -59,6 +100,8 @@ export default function ProfileScreen({ navigation }) {
           onPress: () => {
             logout();
             resetUser();
+            clearTrees();
+            resetAchievements();
           },
         },
       ]
@@ -76,6 +119,12 @@ export default function ProfileScreen({ navigation }) {
     updateSettings({ darkMode: value });
   };
 
+  // Ring rotation interpolation
+  const ringRotate = ringAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
   // Menu items
   const menuItems = [
     {
@@ -83,260 +132,315 @@ export default function ProfileScreen({ navigation }) {
       title: 'Pohon Saya',
       subtitle: `${myTrees.length} pohon terdokumentasi`,
       icon: '🌱',
-      color: COLORS.PRIMARY,
+      color: '#10B981',
       onPress: () => navigation.navigate('Statistics'),
     },
     {
       id: 2,
-      title: 'Pencapaian & Badge',
-      subtitle: `${achievements.filter(a => a.isUnlocked).length}/${achievements.length} diraih`,
-      icon: '🏅',
-      color: COLORS.ACCENT,
-      onPress: () => {},
+      title: 'Eco Wallet',
+      subtitle: `${stats.totalPoints.toLocaleString()} poin tersedia`,
+      icon: '💎',
+      color: '#8B5CF6',
+      onPress: () => navigation.navigate('EcoWallet'),
     },
     {
       id: 3,
-      title: 'Undang Teman',
-      subtitle: 'Ajak teman bergabung',
-      icon: '👥',
-      color: COLORS.SUCCESS,
-      onPress: () => {},
-    },
-    {
-      id: 4,
       title: 'Lokasi RTH',
-      subtitle: 'Lihat peta lokasi',
-      icon: '📍',
-      color: '#e67e22',
+      subtitle: 'Lihat peta penghijauan',
+      icon: '🗺️',
+      color: '#3B82F6',
       onPress: () => navigation.navigate('Map'),
     },
     {
+      id: 4,
+      title: 'Leaderboard',
+      subtitle: 'Peringkat kontributor',
+      icon: '🏆',
+      color: '#F59E0B',
+      onPress: () => navigation.navigate('Leaderboard'),
+    },
+    {
       id: 5,
-      title: 'Eco Wallet',
-      subtitle: `${stats.totalPoints} poin tersedia`,
-      icon: '💰',
-      color: COLORS.WARNING,
-      onPress: () => navigation.navigate('EcoWallet'),
+      title: 'Undang Teman',
+      subtitle: 'Dapat bonus 50 poin',
+      icon: '👥',
+      color: '#EC4899',
+      onPress: () => {},
     },
   ];
 
-  const renderAchievement = ({ item }) => (
-    <View style={styles.achievementCard}>
+  // Render achievement
+  const renderAchievement = (item, index) => (
+    <AnimatedPressable key={item.id} style={styles.achievementCard}>
       <LinearGradient
-        colors={item.isUnlocked ? [COLORS.SUCCESS, COLORS.SUCCESS + 'CC'] : [COLORS.GRAY_200, COLORS.GRAY_100]}
+        colors={item.isUnlocked 
+          ? ['#10B981', '#059669'] 
+          : [COLORS.GRAY_200, COLORS.GRAY_300]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.achievementGradient}
       >
-        <View style={[styles.achievementIconContainer, { opacity: item.isUnlocked ? 1 : 0.5 }]}>
-          <Text style={styles.achievementIcon}>{item.icon}</Text>
-        </View>
-        <Text style={[styles.achievementTitle, { color: item.isUnlocked ? COLORS.WHITE : COLORS.TEXT_SECONDARY }]}>
+        {item.isNew && (
+          <View style={styles.newBadge}>
+            <Text style={styles.newBadgeText}>NEW</Text>
+          </View>
+        )}
+        <Text style={[styles.achievementIcon, { opacity: item.isUnlocked ? 1 : 0.5 }]}>
+          {item.icon}
+        </Text>
+        <Text style={[
+          styles.achievementName,
+          { color: item.isUnlocked ? COLORS.WHITE : COLORS.TEXT_SECONDARY }
+        ]}>
           {item.name}
         </Text>
         {!item.isUnlocked && (
-          <View style={styles.achievementProgress}>
-            <View style={styles.progressBar}>
+          <View style={styles.achievementProgressContainer}>
+            <View style={styles.achievementProgressBar}>
               <View 
                 style={[
-                  styles.progressFill, 
+                  styles.achievementProgressFill,
                   { width: `${Math.min((item.progress / item.requirement.count) * 100, 100)}%` }
                 ]} 
               />
             </View>
-            <Text style={styles.progressText}>
-              {item.progress}/{item.requirement.count}
-            </Text>
           </View>
         )}
-        {item.isUnlocked && item.isNew && (
-          <View style={styles.newBadge}>
-            <Text style={styles.newBadgeText}>BARU!</Text>
+        {!item.isUnlocked && (
+          <View style={styles.lockOverlay}>
+            <Text style={styles.lockIcon}>🔒</Text>
           </View>
         )}
       </LinearGradient>
-    </View>
+    </AnimatedPressable>
   );
 
-  const renderDailyQuest = (quest, index) => (
-    <View key={quest.id} style={styles.questItem}>
-      <View style={styles.questInfo}>
-        <Text style={styles.questIcon}>{quest.icon}</Text>
-        <View style={styles.questText}>
-          <Text style={styles.questTitle}>{quest.name}</Text>
-          <Text style={styles.questProgress}>
-            {quest.progress}/{quest.requirement.count}
-          </Text>
-        </View>
-      </View>
-      <View style={[styles.questStatus, quest.isCompleted && styles.questCompleted]}>
-        <Text style={styles.questStatusText}>{quest.isCompleted ? '✓' : `+${quest.points}`}</Text>
-      </View>
-    </View>
-  );
-
+  // Render menu item
   const renderMenuItem = (item) => (
-    <TouchableOpacity
+    <AnimatedPressable
       key={item.id}
       style={styles.menuItem}
-      activeOpacity={0.7}
       onPress={item.onPress}
     >
-      <View style={[styles.menuIcon, { backgroundColor: item.color + '15' }]}>
-        <Text style={styles.menuIconText}>{item.icon}</Text>
+      <View style={[styles.menuIconBg, { backgroundColor: item.color + '15' }]}>
+        <Text style={styles.menuIcon}>{item.icon}</Text>
       </View>
       <View style={styles.menuContent}>
         <Text style={styles.menuTitle}>{item.title}</Text>
         <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
       </View>
       <Text style={styles.menuArrow}>›</Text>
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.PRIMARY} translucent />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* Header */}
       <View style={styles.headerContainer}>
         <LinearGradient
-          colors={[COLORS.PRIMARY, COLORS.PRIMARY_DARK, COLORS.PRIMARY_DARK]}
-          style={styles.header}
+          colors={GRADIENT_COLORS.HEADER}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
+          style={styles.header}
         >
-          <View style={styles.decorativeCircle1} />
-          <View style={styles.decorativeCircle2} />
+          {/* Decorative Elements */}
+          <View style={styles.blob1} />
+          <View style={styles.blob2} />
 
-          <View style={styles.headerContent}>
+          <Animated.View
+            style={[
+              styles.headerContent,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            {/* Top Bar */}
             <View style={styles.topBar}>
-              <Text style={styles.headerTitle}>Profil Saya</Text>
-              <TouchableOpacity style={styles.editButton}>
+              <Text style={styles.headerTitle}>Profil</Text>
+              <AnimatedPressable style={styles.editButton}>
                 <Text style={styles.editIcon}>✏️</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
 
+            {/* Profile Section */}
             <View style={styles.profileSection}>
-              <View style={styles.profileImageContainer}>
-                <Image 
-                  source={profile.avatar || require('../../../assets/home/avatar.png')} 
-                  style={styles.profileImage} 
-                />
+              {/* Avatar with Ring */}
+              <View style={styles.avatarWrapper}>
+                <Animated.View 
+                  style={[
+                    styles.avatarRing,
+                    { transform: [{ rotate: ringRotate }] }
+                  ]}
+                >
+                  <LinearGradient
+                    colors={['#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#10B981']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.avatarRingGradient}
+                  />
+                </Animated.View>
+                <View style={styles.avatarContainer}>
+                  <Image
+                    source={profile.avatar || require('../../../assets/home/avatar.png')}
+                    style={styles.avatar}
+                  />
+                </View>
                 <View style={styles.levelBadge}>
                   <Text style={styles.levelNumber}>{stats.level}</Text>
                 </View>
               </View>
 
-              <View style={styles.profileInfo}>
-                <Text style={styles.userName}>{profile.name || user?.name || 'Pengguna'}</Text>
-                <Text style={styles.userEmail}>{profile.email || user?.email}</Text>
-                <View style={styles.levelContainer}>
-                  <Text style={styles.userLevel}>{stats.levelName}</Text>
+              {/* Profile Info */}
+              <Text style={styles.userName}>{profile.name || user?.name || 'Pengguna'}</Text>
+              <Text style={styles.userEmail}>{profile.email || user?.email}</Text>
+              
+              <View style={styles.levelTag}>
+                <Text style={styles.levelTagText}>{stats.levelName}</Text>
+              </View>
+
+              {/* Level Progress */}
+              <View style={styles.levelProgressContainer}>
+                <View style={styles.levelProgressBar}>
+                  <LinearGradient
+                    colors={['#10B981', '#059669']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[styles.levelProgressFill, { width: `${levelProgress}%` }]}
+                  />
                 </View>
-                <Text style={styles.location}>📍 {profile.location}</Text>
+                <Text style={styles.levelProgressText}>
+                  {stats.totalPoints - currentLevelMin} / {nextLevelMin - currentLevelMin} ke level berikutnya
+                </Text>
               </View>
             </View>
-          </View>
+          </Animated.View>
         </LinearGradient>
+
         <View style={styles.curvedBottom} />
       </View>
 
+      {/* Content */}
       <ScrollView
-        style={styles.content}
+        style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={styles.scrollContent}
       >
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
+          <GlassCard variant="light" style={styles.statCard}>
             <Text style={styles.statIcon}>⭐</Text>
-            <Text style={styles.statValue}>{stats.totalPoints.toLocaleString()}</Text>
+            <AnimatedCounter
+              value={stats.totalPoints}
+              textStyle={styles.statValue}
+              duration={1200}
+            />
             <Text style={styles.statLabel}>Total Poin</Text>
-          </View>
+          </GlassCard>
 
-          <View style={styles.statCard}>
+          <GlassCard variant="light" style={styles.statCard}>
             <Text style={styles.statIcon}>🌳</Text>
-            <Text style={styles.statValue}>{stats.totalTrees}</Text>
+            <AnimatedCounter
+              value={stats.totalTrees}
+              textStyle={styles.statValue}
+              duration={1200}
+              delay={100}
+            />
             <Text style={styles.statLabel}>Pohon</Text>
-          </View>
+          </GlassCard>
 
-          <View style={styles.statCard}>
+          <GlassCard variant="light" style={styles.statCard}>
             <Text style={styles.statIcon}>🔥</Text>
-            <Text style={styles.statValue}>{stats.streak}</Text>
+            <AnimatedCounter
+              value={stats.streak}
+              textStyle={styles.statValue}
+              duration={1200}
+              delay={200}
+            />
             <Text style={styles.statLabel}>Streak</Text>
-          </View>
+          </GlassCard>
         </View>
 
-        {/* Impact Summary */}
+        {/* Impact Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Dampak Kontribusi 🌍</Text>
-          <View style={styles.impactCard}>
-            <LinearGradient
-              colors={[COLORS.PRIMARY + '15', COLORS.BACKGROUND]}
-              style={styles.impactGradient}
-            >
-              <View style={styles.impactRow}>
-                <View style={styles.impactItem}>
-                  <Text style={styles.impactIcon}>🌱</Text>
-                  <Text style={styles.impactValue}>{stats.totalTrees}</Text>
-                  <Text style={styles.impactLabel}>Pohon Ditanam</Text>
-                </View>
-                <View style={styles.impactItem}>
-                  <Text style={styles.impactIcon}>🌍</Text>
-                  <Text style={styles.impactValue}>{stats.co2Absorbed.toFixed(1)}kg</Text>
-                  <Text style={styles.impactLabel}>CO₂ Diserap</Text>
-                </View>
-                <View style={styles.impactItem}>
-                  <Text style={styles.impactIcon}>🎯</Text>
-                  <Text style={styles.impactValue}>{stats.todayProgress}/{stats.todayTarget}</Text>
-                  <Text style={styles.impactLabel}>Target Hari Ini</Text>
-                </View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Dampak Kontribusi</Text>
+            <Text style={styles.sectionEmoji}>🌍</Text>
+          </View>
+          <GlassCard variant="primary" padding="lg" style={styles.impactCard}>
+            <View style={styles.impactRow}>
+              <View style={styles.impactItem}>
+                <Text style={styles.impactIcon}>🌱</Text>
+                <Text style={styles.impactValue}>{stats.totalTrees}</Text>
+                <Text style={styles.impactLabel}>Pohon</Text>
               </View>
-            </LinearGradient>
-          </View>
-        </View>
-
-        {/* Daily Quests */}
-        {dailyQuests.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Misi Harian 🎯</Text>
-            <View style={styles.questCard}>
-              {dailyQuests.map(renderDailyQuest)}
+              <View style={styles.impactDivider} />
+              <View style={styles.impactItem}>
+                <Text style={styles.impactIcon}>💨</Text>
+                <Text style={styles.impactValue}>{stats.co2Absorbed.toFixed(1)} kg</Text>
+                <Text style={styles.impactLabel}>CO₂ Diserap</Text>
+              </View>
+              <View style={styles.impactDivider} />
+              <View style={styles.impactItem}>
+                <Text style={styles.impactIcon}>🎯</Text>
+                <Text style={styles.impactValue}>{stats.todayProgress}/{stats.todayTarget}</Text>
+                <Text style={styles.impactLabel}>Hari Ini</Text>
+              </View>
             </View>
-          </View>
-        )}
+          </GlassCard>
+        </View>
 
         {/* Achievements */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Pencapaian 🏅</Text>
-            <Text style={styles.achievementCount}>
-              {achievements.filter(a => a.isUnlocked).length}/{achievements.length}
-            </Text>
+            <Text style={styles.sectionTitle}>Pencapaian</Text>
+            <View style={styles.achievementCount}>
+              <Text style={styles.achievementCountText}>{unlockedCount}/{achievements.length}</Text>
+            </View>
           </View>
-          <FlatList
-            data={achievements.slice(0, 6)}
-            renderItem={renderAchievement}
-            keyExtractor={(item) => item.id}
+          <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.achievementsList}
-          />
+          >
+            {achievements.slice(0, 8).map(renderAchievement)}
+          </ScrollView>
+        </View>
+
+        {/* Menu */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Menu</Text>
+            <Text style={styles.sectionEmoji}>📱</Text>
+          </View>
+          <GlassCard variant="light" padding="sm">
+            {menuItems.map(renderMenuItem)}
+          </GlassCard>
         </View>
 
         {/* Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pengaturan ⚙️</Text>
-          <View style={styles.settingsCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Pengaturan</Text>
+            <Text style={styles.sectionEmoji}>⚙️</Text>
+          </View>
+          <GlassCard variant="light" padding="md">
             <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
-                <Text style={styles.settingIcon}>🔔</Text>
-                <View style={styles.settingText}>
+                <View style={[styles.settingIconBg, { backgroundColor: COLORS.INFO + '15' }]}>
+                  <Text style={styles.settingIcon}>🔔</Text>
+                </View>
+                <View>
                   <Text style={styles.settingTitle}>Notifikasi</Text>
                   <Text style={styles.settingSubtitle}>Terima pemberitahuan</Text>
                 </View>
               </View>
               <Switch
                 trackColor={{ false: COLORS.GRAY_300, true: COLORS.PRIMARY + '50' }}
-                thumbColor={notificationsEnabled ? COLORS.PRIMARY : COLORS.GRAY_500}
+                thumbColor={notificationsEnabled ? COLORS.PRIMARY : COLORS.GRAY_400}
                 value={notificationsEnabled}
                 onValueChange={handleNotificationToggle}
               />
@@ -346,45 +450,38 @@ export default function ProfileScreen({ navigation }) {
 
             <View style={styles.settingItem}>
               <View style={styles.settingLeft}>
-                <Text style={styles.settingIcon}>🌙</Text>
-                <View style={styles.settingText}>
+                <View style={[styles.settingIconBg, { backgroundColor: COLORS.SECONDARY + '15' }]}>
+                  <Text style={styles.settingIcon}>🌙</Text>
+                </View>
+                <View>
                   <Text style={styles.settingTitle}>Mode Gelap</Text>
-                  <Text style={styles.settingSubtitle}>Tema gelap (Coming Soon)</Text>
+                  <Text style={styles.settingSubtitle}>Coming Soon</Text>
                 </View>
               </View>
               <Switch
                 trackColor={{ false: COLORS.GRAY_300, true: COLORS.PRIMARY + '50' }}
-                thumbColor={darkModeEnabled ? COLORS.PRIMARY : COLORS.GRAY_500}
+                thumbColor={darkModeEnabled ? COLORS.PRIMARY : COLORS.GRAY_400}
                 value={darkModeEnabled}
                 onValueChange={handleDarkModeToggle}
+                disabled
               />
             </View>
-          </View>
+          </GlassCard>
         </View>
 
-        {/* Menu */}
+        {/* Logout */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Menu 📱</Text>
-          <View style={styles.menuContainer}>
-            {menuItems.map(renderMenuItem)}
-          </View>
-        </View>
-
-        {/* Logout Button */}
-        <View style={styles.section}>
-          <TouchableOpacity 
-            style={styles.logoutButton} 
-            activeOpacity={0.8}
-            onPress={handleLogout}
-          >
+          <AnimatedPressable onPress={handleLogout}>
             <LinearGradient
-              colors={[COLORS.ERROR, COLORS.ERROR + 'DD']}
-              style={styles.logoutGradient}
+              colors={[COLORS.ERROR, COLORS.ERROR_LIGHT]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.logoutButton}
             >
               <Text style={styles.logoutIcon}>🚪</Text>
               <Text style={styles.logoutText}>Keluar dari Akun</Text>
             </LinearGradient>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
 
         <View style={styles.bottomSpacing} />
@@ -398,206 +495,227 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.BACKGROUND,
   },
+
+  // Header
   headerContainer: {
     position: 'relative',
   },
   header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 45,
-    paddingHorizontal: SPACING.PADDING.XL,
+    paddingTop: Platform.OS === 'ios' ? 60 : 48,
+    paddingHorizontal: 20,
     paddingBottom: 40,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
-    position: 'relative',
     overflow: 'hidden',
   },
-  decorativeCircle1: {
+  blob1: {
     position: 'absolute',
-    top: -50,
+    top: -40,
     right: -30,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  blob2: {
+    position: 'absolute',
+    bottom: 20,
+    left: -50,
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: COLORS.WHITE + '10',
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  decorativeCircle2: {
-    position: 'absolute',
-    bottom: -20,
-    left: -40,
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.WHITE + '08',
-  },
-  headerContent: {
-    zIndex: 2,
-  },
+  headerContent: {},
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: SPACING.MARGIN.XL,
+    marginBottom: 24,
   },
   headerTitle: {
-    fontSize: FONT_SIZES.H4,
+    fontSize: 24,
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
   editButton: {
-    padding: 8,
-    backgroundColor: COLORS.WHITE + '15',
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   editIcon: {
     fontSize: 18,
   },
+  curvedBottom: {
+    position: 'absolute',
+    bottom: -2,
+    left: 0,
+    right: 0,
+    height: 30,
+    backgroundColor: COLORS.BACKGROUND,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+  },
+
+  // Profile Section
   profileSection: {
     alignItems: 'center',
   },
-  profileImageContainer: {
+  avatarWrapper: {
     position: 'relative',
-    marginBottom: SPACING.MARGIN.LG,
+    marginBottom: 16,
   },
-  profileImage: {
+  avatarRing: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    overflow: 'hidden',
+  },
+  avatarRingGradient: {
+    flex: 1,
+  },
+  avatarContainer: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 4,
-    borderColor: COLORS.WHITE,
+    backgroundColor: COLORS.WHITE,
+    padding: 4,
+    overflow: 'hidden',
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 46,
   },
   levelBadge: {
     position: 'absolute',
-    bottom: -5,
-    right: -5,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    bottom: -4,
+    right: -4,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: COLORS.ACCENT,
-    borderWidth: 3,
-    borderColor: COLORS.WHITE,
+    borderWidth: 4,
+    borderColor: COLORS.PRIMARY,
     justifyContent: 'center',
     alignItems: 'center',
   },
   levelNumber: {
     fontSize: 14,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
     color: COLORS.WHITE,
-  },
-  profileInfo: {
-    alignItems: 'center',
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
   userName: {
-    fontSize: FONT_SIZES.H4,
+    fontSize: 24,
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
     marginBottom: 4,
   },
   userEmail: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.WHITE,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.7)',
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    opacity: 0.8,
-    marginBottom: SPACING.MARGIN.SM,
+    marginBottom: 12,
   },
-  levelContainer: {
-    backgroundColor: COLORS.WHITE + '20',
+  levelTag: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
-    marginBottom: SPACING.MARGIN.SM,
+    marginBottom: 16,
   },
-  userLevel: {
-    fontSize: FONT_SIZES.SMALL,
+  levelTagText: {
+    fontSize: 13,
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
   },
-  location: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    opacity: 0.8,
+  levelProgressContainer: {
+    width: '100%',
+    alignItems: 'center',
   },
-  curvedBottom: {
-    position: 'absolute',
-    bottom: -1,
-    left: 0,
-    right: 0,
-    height: 20,
-    backgroundColor: COLORS.BACKGROUND,
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
+  levelProgressBar: {
+    width: '80%',
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
   },
-  content: {
+  levelProgressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  levelProgressText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
+
+  // Scroll View
+  scrollView: {
     flex: 1,
-    marginTop: -20,
+    marginTop: -30,
   },
-  contentContainer: {
-    paddingTop: 30,
-    paddingHorizontal: SPACING.PADDING.XL,
+  scrollContent: {
+    paddingTop: 40,
+    paddingHorizontal: 20,
     paddingBottom: 100,
   },
-  section: {
-    marginBottom: SPACING.MARGIN.XL,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.MARGIN.MD,
-  },
-  sectionTitle: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginBottom: SPACING.MARGIN.MD,
-  },
-  achievementCount: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-  },
+
+  // Stats
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.MARGIN.XL,
-    gap: 8,
+    gap: 12,
+    marginBottom: 28,
   },
   statCard: {
     flex: 1,
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 16,
-    padding: SPACING.PADDING.MD,
     alignItems: 'center',
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    paddingVertical: 16,
+    ...SHADOWS.MEDIUM,
   },
   statIcon: {
-    fontSize: 24,
-    marginBottom: SPACING.MARGIN.XS,
+    fontSize: 28,
+    marginBottom: 8,
   },
   statValue: {
-    fontSize: FONT_SIZES.H5,
+    fontSize: 24,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
   statLabel: {
-    fontSize: FONT_SIZES.TINY,
+    fontSize: 12,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    marginTop: 4,
   },
+
+  // Section
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    flex: 1,
+  },
+  sectionEmoji: {
+    fontSize: 20,
+  },
+
+  // Impact
   impactCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  impactGradient: {
-    padding: SPACING.PADDING.LG,
+    ...SHADOWS.MEDIUM,
   },
   impactRow: {
     flexDirection: 'row',
@@ -608,126 +726,83 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   impactIcon: {
-    fontSize: 28,
-    marginBottom: SPACING.MARGIN.SM,
+    fontSize: 32,
+    marginBottom: 8,
   },
   impactValue: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.PRIMARY,
+    fontSize: 18,
+    color: COLORS.PRIMARY_DARK,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginBottom: 2,
   },
   impactLabel: {
-    fontSize: FONT_SIZES.TINY,
+    fontSize: 11,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-    textAlign: 'center',
+    marginTop: 4,
   },
-  questCard: {
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 16,
-    padding: SPACING.PADDING.MD,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+  impactDivider: {
+    width: 1,
+    height: '70%',
+    backgroundColor: COLORS.PRIMARY + '30',
+    alignSelf: 'center',
   },
-  questItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.PADDING.SM,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.BORDER,
-  },
-  questInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  questIcon: {
-    fontSize: 24,
-    marginRight: SPACING.MARGIN.MD,
-  },
-  questText: {
-    flex: 1,
-  },
-  questTitle: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-  },
-  questProgress: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-  },
-  questStatus: {
+
+  // Achievements
+  achievementCount: {
     backgroundColor: COLORS.PRIMARY + '15',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  questCompleted: {
-    backgroundColor: COLORS.SUCCESS,
-  },
-  questStatusText: {
-    fontSize: FONT_SIZES.SMALL,
+  achievementCountText: {
+    fontSize: 13,
     color: COLORS.PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
   achievementsList: {
-    paddingRight: SPACING.PADDING.XL,
+    paddingRight: 20,
+    gap: 12,
   },
   achievementCard: {
-    width: width * 0.35,
-    marginRight: SPACING.MARGIN.MD,
+    width: 100,
+    height: 120,
     borderRadius: 16,
     overflow: 'hidden',
   },
   achievementGradient: {
-    padding: SPACING.PADDING.MD,
+    flex: 1,
     alignItems: 'center',
-    minHeight: 120,
     justifyContent: 'center',
-  },
-  achievementIconContainer: {
-    marginBottom: SPACING.MARGIN.SM,
+    padding: 12,
   },
   achievementIcon: {
-    fontSize: 28,
+    fontSize: 32,
+    marginBottom: 8,
   },
-  achievementTitle: {
-    fontSize: FONT_SIZES.SMALL,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  achievementName: {
+    fontSize: 11,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
     textAlign: 'center',
   },
-  achievementProgress: {
+  achievementProgressContainer: {
     width: '100%',
-    marginTop: SPACING.MARGIN.SM,
+    marginTop: 8,
   },
-  progressBar: {
+  achievementProgressBar: {
     height: 4,
-    backgroundColor: COLORS.WHITE + '30',
+    backgroundColor: 'rgba(255,255,255,0.3)',
     borderRadius: 2,
-    marginBottom: 4,
+    overflow: 'hidden',
   },
-  progressFill: {
+  achievementProgressFill: {
     height: '100%',
     backgroundColor: COLORS.PRIMARY,
     borderRadius: 2,
   },
-  progressText: {
-    fontSize: FONT_SIZES.TINY,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-    textAlign: 'center',
-  },
   newBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 6,
+    right: 6,
     backgroundColor: COLORS.ACCENT,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -738,113 +813,114 @@ const styles = StyleSheet.create({
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
-  settingsCard: {
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 16,
-    padding: SPACING.PADDING.MD,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+  lockOverlay: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
   },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.PADDING.SM,
+  lockIcon: {
+    fontSize: 14,
   },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  settingIcon: {
-    fontSize: 20,
-    marginRight: SPACING.MARGIN.MD,
-  },
-  settingText: {
-    flex: 1,
-  },
-  settingTitle: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-  },
-  settingSubtitle: {
-    fontSize: FONT_SIZES.TINY,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-  },
-  settingDivider: {
-    height: 1,
-    backgroundColor: COLORS.BORDER,
-    marginVertical: SPACING.MARGIN.XS,
-  },
-  menuContainer: {
-    backgroundColor: COLORS.WHITE,
-    borderRadius: 16,
-    padding: SPACING.PADDING.SM,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
+
+  // Menu
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: SPACING.PADDING.MD,
-    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.BORDER_LIGHT,
   },
-  menuIcon: {
+  menuIconBg: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: SPACING.MARGIN.MD,
+    marginRight: 14,
   },
-  menuIconText: {
-    fontSize: 20,
+  menuIcon: {
+    fontSize: 22,
   },
   menuContent: {
     flex: 1,
   },
   menuTitle: {
-    fontSize: FONT_SIZES.REGULAR,
+    fontSize: 15,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
   menuSubtitle: {
-    fontSize: FONT_SIZES.TINY,
+    fontSize: 12,
     color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    marginTop: 2,
   },
   menuArrow: {
-    fontSize: 20,
+    fontSize: 24,
     color: COLORS.TEXT_DISABLED,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
   },
+
+  // Settings
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  settingIcon: {
+    fontSize: 20,
+  },
+  settingTitle: {
+    fontSize: 15,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
+  settingSubtitle: {
+    fontSize: 12,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    marginTop: 2,
+  },
+  settingDivider: {
+    height: 1,
+    backgroundColor: COLORS.BORDER_LIGHT,
+    marginVertical: 6,
+  },
+
+  // Logout
   logoutButton: {
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  logoutGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.PADDING.MD,
+    paddingVertical: 16,
+    borderRadius: 16,
+    ...SHADOWS.MEDIUM,
   },
   logoutIcon: {
-    fontSize: 18,
-    marginRight: SPACING.MARGIN.SM,
+    fontSize: 20,
+    marginRight: 10,
   },
   logoutText: {
-    fontSize: FONT_SIZES.MEDIUM,
+    fontSize: 16,
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
+
   bottomSpacing: {
-    height: 80,
+    height: 20,
   },
 });

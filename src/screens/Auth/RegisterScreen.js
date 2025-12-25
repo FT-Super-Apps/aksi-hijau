@@ -1,9 +1,9 @@
 /**
- * Register Screen - Halaman registrasi pengguna baru
+ * RegisterScreen - Modern Register dengan Glassmorphism & Animations
  * @module screens/Auth/RegisterScreen
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,70 +15,117 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Animated,
+  Dimensions,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../constants/colors';
-import { SPACING } from '../../constants/spacing';
+import { COLORS, SHADOWS } from '../../constants/colors';
 import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
 import { useAuthStore } from '../../store/authStore';
 import { useUserStore } from '../../store/userStore';
 import { useTreeStore } from '../../store/treeStore';
 import { useAchievementStore } from '../../store/achievementStore';
-import Input from '../../components/atoms/Input';
+import AnimatedPressable from '../../components/atoms/AnimatedPressable';
+
+const { width, height } = Dimensions.get('window');
 
 export default function RegisterScreen({ navigation }) {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-  });
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(false);
   const [errors, setErrors] = useState({});
+  const [focusedInput, setFocusedInput] = useState(null);
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const formSlide = useRef(new Animated.Value(100)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  // Store hooks
   const { register, isLoading, error, clearError } = useAuthStore();
   const { initializeFromAuth, initializeNewUser: initNewUserStats } = useUserStore();
   const { initializeNewUser: initNewUserTrees } = useTreeStore();
   const { initializeNewUser: initNewUserAchievements } = useAchievementStore();
 
-  const updateFormData = (key, value) => {
-    setFormData({ ...formData, [key]: value });
-    if (errors[key]) {
-      setErrors({ ...errors, [key]: null });
-    }
-  };
+  useEffect(() => {
+    // Entrance animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(formSlide, {
+        toValue: 0,
+        tension: 40,
+        friction: 8,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Floating animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      clearError();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  const floatTranslate = floatAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -10],
+  });
 
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.name.trim()) {
+    if (!name.trim()) {
       newErrors.name = 'Nama harus diisi';
-    } else if (formData.name.trim().length < 3) {
-      newErrors.name = 'Nama minimal 3 karakter';
+    } else if (name.trim().length < 2) {
+      newErrors.name = 'Nama minimal 2 karakter';
     }
 
-    if (!formData.email.trim()) {
+    if (!email.trim()) {
       newErrors.email = 'Email harus diisi';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
       newErrors.email = 'Format email tidak valid';
     }
 
-    if (formData.phone && !/^[0-9]{10,13}$/.test(formData.phone.replace(/[^0-9]/g, ''))) {
-      newErrors.phone = 'Format nomor telepon tidak valid';
-    }
-
-    if (!formData.password) {
+    if (!password) {
       newErrors.password = 'Password harus diisi';
-    } else if (formData.password.length < 6) {
+    } else if (password.length < 6) {
       newErrors.password = 'Password minimal 6 karakter';
     }
 
-    if (!formData.confirmPassword) {
+    if (!confirmPassword) {
       newErrors.confirmPassword = 'Konfirmasi password harus diisi';
-    } else if (formData.password !== formData.confirmPassword) {
+    } else if (password !== confirmPassword) {
       newErrors.confirmPassword = 'Password tidak cocok';
     }
 
@@ -93,18 +140,17 @@ export default function RegisterScreen({ navigation }) {
   const handleRegister = async () => {
     if (!validateForm()) return;
 
-    const result = await register({
-      name: formData.name.trim(),
-      email: formData.email.trim().toLowerCase(),
-      phone: formData.phone,
-      password: formData.password,
-    });
+    const userData = {
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password,
+    };
+
+    const result = await register(userData);
 
     if (result.success) {
       const authUser = useAuthStore.getState().user;
       initializeFromAuth(authUser);
-      
-      // Initialize fresh data for new user
       initNewUserStats();
       initNewUserTrees();
       initNewUserAchievements();
@@ -119,178 +165,242 @@ export default function RegisterScreen({ navigation }) {
     }
   };
 
-  const handleBack = () => {
-    navigation.goBack();
+  const handleLogin = () => {
+    navigation.navigate('Login');
   };
 
-  const renderInputField = (label, key, placeholder, options = {}) => {
-    const { icon, keyboardType, secureTextEntry, showToggle, isSecure } = options;
+  const renderInput = (config) => {
+    const { 
+      label, 
+      icon, 
+      value, 
+      setValue, 
+      placeholder, 
+      field,
+      isPassword,
+      showPasswordState,
+      setShowPasswordState,
+      keyboardType = 'default',
+    } = config;
 
     return (
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>{label}</Text>
-        <View style={[styles.inputWrapper, errors[key] && styles.inputError]}>
-          {icon && <Text style={styles.inputIcon}>{icon}</Text>}
-          <Input
-            placeholder={placeholder}
-            value={formData[key]}
-            onChangeText={(text) => updateFormData(key, text)}
-            keyboardType={keyboardType || 'default'}
-            autoCapitalize={key === 'email' ? 'none' : 'words'}
-            secureTextEntry={secureTextEntry}
+        <Text style={styles.inputLabel}>{label}</Text>
+        <View style={[
+          styles.inputContainer,
+          focusedInput === field && styles.inputContainerFocused,
+          errors[field] && styles.inputContainerError,
+        ]}>
+          <Text style={styles.inputIcon}>{icon}</Text>
+          <TextInput
             style={styles.input}
+            placeholder={placeholder}
+            placeholderTextColor={COLORS.TEXT_DISABLED}
+            value={value}
+            onChangeText={(text) => {
+              setValue(text);
+              if (errors[field]) setErrors({ ...errors, [field]: null });
+            }}
+            keyboardType={keyboardType}
+            autoCapitalize={field === 'email' ? 'none' : 'words'}
+            secureTextEntry={isPassword && !showPasswordState}
+            onFocus={() => setFocusedInput(field)}
+            onBlur={() => setFocusedInput(null)}
           />
-          {showToggle && (
+          {isPassword && (
             <TouchableOpacity
-              onPress={() => {
-                if (key === 'password') setShowPassword(!showPassword);
-                else setShowConfirmPassword(!showConfirmPassword);
-              }}
+              onPress={() => setShowPasswordState(!showPasswordState)}
               style={styles.eyeButton}
             >
-              <Text style={styles.eyeIcon}>{isSecure ? '🙈' : '👁️'}</Text>
+              <Text style={styles.eyeIcon}>{showPasswordState ? '👁️' : '🙈'}</Text>
             </TouchableOpacity>
           )}
         </View>
-        {errors[key] && <Text style={styles.fieldError}>{errors[key]}</Text>}
+        {errors[field] && (
+          <Text style={styles.errorMessage}>{errors[field]}</Text>
+        )}
       </View>
     );
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.PRIMARY} />
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Header with Gradient */}
+      {/* Background Gradient */}
       <LinearGradient
-        colors={[COLORS.PRIMARY, COLORS.PRIMARY_DARK]}
-        style={styles.header}
+        colors={['#8B5CF6', '#7C3AED', '#6D28D9']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.backgroundGradient}
       >
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <Text style={styles.logoIcon}>🌱</Text>
-          <Text style={styles.welcomeText}>Buat Akun Baru</Text>
-          <Text style={styles.subtitleText}>Bergabung dalam gerakan hijau</Text>
-        </View>
+        <View style={styles.decorCircle1} />
+        <View style={styles.decorCircle2} />
+        <View style={styles.decorCircle3} />
+        
+        <Animated.Text 
+          style={[styles.floatingEmoji1, { transform: [{ translateY: floatTranslate }] }]}
+        >
+          🌿
+        </Animated.Text>
+        <Animated.Text 
+          style={[styles.floatingEmoji2, { transform: [{ translateY: Animated.multiply(floatTranslate, -1) }] }]}
+        >
+          🌱
+        </Animated.Text>
       </LinearGradient>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.formContainer}
+        style={styles.content}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Header */}
+          <Animated.View 
+            style={[
+              styles.header,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            {/* Back Button */}
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.backIcon}>←</Text>
+            </TouchableOpacity>
+
+            <View style={styles.headerContent}>
+              <Text style={styles.headerTitle}>Buat Akun 🌍</Text>
+              <Text style={styles.headerSubtitle}>
+                Bergabunglah dengan ribuan pahlawan bumi lainnya
+              </Text>
+            </View>
+          </Animated.View>
+
           {/* Form Card */}
-          <View style={styles.formCard}>
+          <Animated.View 
+            style={[
+              styles.formCard,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: formSlide }],
+              },
+            ]}
+          >
             {/* Error Message */}
             {error && (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>⚠️ {error}</Text>
+                <Text style={styles.errorTextIcon}>⚠️</Text>
+                <Text style={styles.errorText}>{error}</Text>
               </View>
             )}
 
             {/* Name Input */}
-            {renderInputField('Nama Lengkap', 'name', 'Masukkan nama lengkap', {
+            {renderInput({
+              label: 'Nama Lengkap',
               icon: '👤',
+              value: name,
+              setValue: setName,
+              placeholder: 'Masukkan nama lengkap',
+              field: 'name',
             })}
 
             {/* Email Input */}
-            {renderInputField('Email', 'email', 'Masukkan email', {
+            {renderInput({
+              label: 'Email',
               icon: '📧',
+              value: email,
+              setValue: setEmail,
+              placeholder: 'nama@email.com',
+              field: 'email',
               keyboardType: 'email-address',
             })}
 
-            {/* Phone Input */}
-            {renderInputField('Nomor Telepon (Opsional)', 'phone', 'Contoh: 081234567890', {
-              icon: '📱',
-              keyboardType: 'phone-pad',
-            })}
-
             {/* Password Input */}
-            {renderInputField('Password', 'password', 'Minimal 6 karakter', {
-              icon: '🔒',
-              secureTextEntry: !showPassword,
-              showToggle: true,
-              isSecure: !showPassword,
+            {renderInput({
+              label: 'Password',
+              icon: '🔐',
+              value: password,
+              setValue: setPassword,
+              placeholder: 'Minimal 6 karakter',
+              field: 'password',
+              isPassword: true,
+              showPasswordState: showPassword,
+              setShowPasswordState: setShowPassword,
             })}
 
             {/* Confirm Password Input */}
-            {renderInputField('Konfirmasi Password', 'confirmPassword', 'Ulangi password', {
+            {renderInput({
+              label: 'Konfirmasi Password',
               icon: '🔐',
-              secureTextEntry: !showConfirmPassword,
-              showToggle: true,
-              isSecure: !showConfirmPassword,
+              value: confirmPassword,
+              setValue: setConfirmPassword,
+              placeholder: 'Ketik ulang password',
+              field: 'confirmPassword',
+              isPassword: true,
+              showPasswordState: showConfirmPassword,
+              setShowPasswordState: setShowConfirmPassword,
             })}
 
             {/* Terms Checkbox */}
-            <TouchableOpacity
-              style={styles.termsContainer}
-              onPress={() => setAgreeTerms(!agreeTerms)}
+            <TouchableOpacity 
+              style={styles.termsRow}
+              onPress={() => {
+                setAgreeTerms(!agreeTerms);
+                if (errors.terms) setErrors({ ...errors, terms: null });
+              }}
             >
               <View style={[styles.checkbox, agreeTerms && styles.checkboxChecked]}>
                 {agreeTerms && <Text style={styles.checkmark}>✓</Text>}
               </View>
               <Text style={styles.termsText}>
-                Saya menyetujui{' '}
+                Saya setuju dengan{' '}
                 <Text style={styles.termsLink}>Syarat & Ketentuan</Text>
                 {' '}dan{' '}
                 <Text style={styles.termsLink}>Kebijakan Privasi</Text>
               </Text>
             </TouchableOpacity>
-            {errors.terms && <Text style={styles.fieldError}>{errors.terms}</Text>}
+            {errors.terms && (
+              <Text style={styles.errorMessage}>{errors.terms}</Text>
+            )}
 
             {/* Register Button */}
-            <TouchableOpacity
-              onPress={handleRegister}
-              disabled={isLoading}
-              style={styles.registerButton}
-            >
+            <AnimatedPressable onPress={handleRegister} disabled={isLoading}>
               <LinearGradient
-                colors={[COLORS.PRIMARY, COLORS.PRIMARY_DARK]}
-                style={styles.registerButtonGradient}
+                colors={isLoading ? [COLORS.GRAY_400, COLORS.GRAY_500] : ['#8B5CF6', '#7C3AED']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.registerButton}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#FFF" />
+                  <ActivityIndicator color="#FFF" size="small" />
                 ) : (
-                  <Text style={styles.registerButtonText}>Daftar Sekarang</Text>
+                  <>
+                    <Text style={styles.registerButtonText}>Daftar Sekarang</Text>
+                    <Text style={styles.registerButtonIcon}>→</Text>
+                  </>
                 )}
               </LinearGradient>
-            </TouchableOpacity>
+            </AnimatedPressable>
 
             {/* Login Link */}
-            <View style={styles.loginContainer}>
+            <View style={styles.loginRow}>
               <Text style={styles.loginText}>Sudah punya akun? </Text>
-              <TouchableOpacity onPress={handleBack}>
+              <TouchableOpacity onPress={handleLogin}>
                 <Text style={styles.loginLink}>Masuk</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
 
-          {/* Benefits Section */}
-          <View style={styles.benefitsCard}>
-            <Text style={styles.benefitsTitle}>Keuntungan Bergabung 🌿</Text>
-            <View style={styles.benefitItem}>
-              <Text style={styles.benefitIcon}>🌳</Text>
-              <Text style={styles.benefitText}>Dokumentasi pohon yang kamu tanam</Text>
-            </View>
-            <View style={styles.benefitItem}>
-              <Text style={styles.benefitIcon}>🏆</Text>
-              <Text style={styles.benefitText}>Kumpulkan poin dan achievements</Text>
-            </View>
-            <View style={styles.benefitItem}>
-              <Text style={styles.benefitIcon}>👥</Text>
-              <Text style={styles.benefitText}>Bergabung dengan komunitas hijau</Text>
-            </View>
-            <View style={styles.benefitItem}>
-              <Text style={styles.benefitIcon}>📊</Text>
-              <Text style={styles.benefitText}>Pantau kontribusi CO₂ yang terserap</Text>
-            </View>
-          </View>
+          <View style={styles.bottomSpacing} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -300,140 +410,199 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
+    backgroundColor: '#8B5CF6',
   },
+  backgroundGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  decorCircle1: {
+    position: 'absolute',
+    top: -100,
+    right: -80,
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  decorCircle2: {
+    position: 'absolute',
+    top: height * 0.4,
+    left: -60,
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  decorCircle3: {
+    position: 'absolute',
+    bottom: 150,
+    right: -40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  floatingEmoji1: {
+    position: 'absolute',
+    top: 140,
+    right: 40,
+    fontSize: 28,
+    opacity: 0.6,
+  },
+  floatingEmoji2: {
+    position: 'absolute',
+    top: 220,
+    left: 30,
+    fontSize: 24,
+    opacity: 0.5,
+  },
+  content: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+  },
+
+  // Header
   header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 30,
-    paddingHorizontal: SPACING.PADDING.XL,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    marginBottom: 24,
   },
   backButton: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 50 : 30,
-    left: SPACING.PADDING.LG,
-    zIndex: 10,
-    padding: SPACING.PADDING.SM,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   backIcon: {
     fontSize: 24,
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
-  headerContent: {
-    alignItems: 'center',
-  },
-  logoIcon: {
-    fontSize: 40,
-    marginBottom: SPACING.MARGIN.SM,
-  },
-  welcomeText: {
-    fontSize: FONT_SIZES.H4,
+  headerContent: {},
+  headerTitle: {
+    fontSize: 28,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
     color: COLORS.WHITE,
-    marginBottom: SPACING.MARGIN.XS,
+    marginBottom: 8,
   },
-  subtitleText: {
-    fontSize: FONT_SIZES.REGULAR,
+  headerSubtitle: {
+    fontSize: 14,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    color: COLORS.WHITE,
-    opacity: 0.9,
+    color: 'rgba(255,255,255,0.8)',
   },
-  formContainer: {
-    flex: 1,
-    marginTop: -20,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: SPACING.PADDING.XL,
-    paddingBottom: 40,
-  },
+
+  // Form Card
   formCard: {
     backgroundColor: COLORS.WHITE,
-    borderRadius: 24,
-    padding: SPACING.PADDING.XL,
-    shadowColor: COLORS.BLACK,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    marginBottom: SPACING.MARGIN.LG,
+    borderRadius: 28,
+    padding: 24,
+    ...SHADOWS.EXTRA_LARGE,
   },
+
+  // Error
   errorContainer: {
-    backgroundColor: COLORS.ERROR + '15',
-    borderRadius: 12,
-    padding: SPACING.PADDING.MD,
-    marginBottom: SPACING.MARGIN.LG,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.ERROR + '12',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: COLORS.ERROR + '30',
+  },
+  errorTextIcon: {
+    fontSize: 18,
+    marginRight: 10,
   },
   errorText: {
-    color: COLORS.ERROR,
-    fontSize: FONT_SIZES.SMALL,
+    flex: 1,
+    fontSize: 13,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-    textAlign: 'center',
+    color: COLORS.ERROR,
   },
+
+  // Input
   inputGroup: {
-    marginBottom: SPACING.MARGIN.MD,
+    marginBottom: 18,
   },
-  label: {
-    fontSize: FONT_SIZES.REGULAR,
+  inputLabel: {
+    fontSize: 14,
     fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
     color: COLORS.TEXT_PRIMARY,
-    marginBottom: SPACING.MARGIN.SM,
+    marginBottom: 10,
   },
-  inputWrapper: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.GRAY_50,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: COLORS.BORDER,
-    paddingHorizontal: SPACING.PADDING.MD,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    paddingHorizontal: 16,
+    height: 56,
   },
-  inputError: {
+  inputContainerFocused: {
+    borderColor: '#8B5CF6',
+    backgroundColor: '#8B5CF6' + '08',
+  },
+  inputContainerError: {
     borderColor: COLORS.ERROR,
+    backgroundColor: COLORS.ERROR + '08',
   },
   inputIcon: {
-    fontSize: 18,
-    marginRight: SPACING.MARGIN.SM,
+    fontSize: 20,
+    marginRight: 12,
   },
   input: {
     flex: 1,
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    paddingHorizontal: 0,
+    fontSize: 15,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    color: COLORS.TEXT_PRIMARY,
   },
   eyeButton: {
-    padding: SPACING.PADDING.SM,
+    padding: 8,
+    marginLeft: 8,
   },
   eyeIcon: {
-    fontSize: 18,
+    fontSize: 20,
   },
-  fieldError: {
+  errorMessage: {
+    fontSize: 12,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
     color: COLORS.ERROR,
-    fontSize: FONT_SIZES.SMALL,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    marginTop: SPACING.MARGIN.XS,
+    marginTop: 6,
+    marginLeft: 4,
   },
-  termsContainer: {
+
+  // Terms
+  termsRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: SPACING.MARGIN.LG,
-    marginTop: SPACING.MARGIN.SM,
+    marginBottom: 24,
+    marginTop: 8,
   },
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 8,
     borderWidth: 2,
-    borderColor: COLORS.BORDER,
-    marginRight: SPACING.MARGIN.SM,
-    alignItems: 'center',
+    borderColor: COLORS.BORDER_DARK,
+    marginRight: 12,
     justifyContent: 'center',
+    alignItems: 'center',
   },
   checkboxChecked: {
-    backgroundColor: COLORS.PRIMARY,
-    borderColor: COLORS.PRIMARY,
+    backgroundColor: '#8B5CF6',
+    borderColor: '#8B5CF6',
   },
   checkmark: {
     color: COLORS.WHITE,
@@ -442,72 +611,55 @@ const styles = StyleSheet.create({
   },
   termsText: {
     flex: 1,
-    fontSize: FONT_SIZES.SMALL,
+    fontSize: 13,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
     color: COLORS.TEXT_SECONDARY,
     lineHeight: 20,
   },
   termsLink: {
-    color: COLORS.PRIMARY,
+    color: '#8B5CF6',
     fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
   },
+
+  // Register Button
   registerButton: {
-    borderRadius: 14,
-    overflow: 'hidden',
-    marginBottom: SPACING.MARGIN.LG,
-  },
-  registerButtonGradient: {
-    paddingVertical: SPACING.PADDING.LG,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 56,
+    borderRadius: 16,
+    marginBottom: 24,
+    ...SHADOWS.MEDIUM,
   },
   registerButtonText: {
-    color: COLORS.WHITE,
-    fontSize: FONT_SIZES.MEDIUM,
+    fontSize: 17,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
+    color: COLORS.WHITE,
   },
-  loginContainer: {
+  registerButtonIcon: {
+    fontSize: 20,
+    color: COLORS.WHITE,
+    marginLeft: 8,
+  },
+
+  // Login Link
+  loginRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
   loginText: {
-    color: COLORS.TEXT_SECONDARY,
-    fontSize: FONT_SIZES.REGULAR,
+    fontSize: 14,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    color: COLORS.TEXT_SECONDARY,
   },
   loginLink: {
-    color: COLORS.PRIMARY,
-    fontSize: FONT_SIZES.REGULAR,
+    fontSize: 14,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
+    color: '#8B5CF6',
   },
-  benefitsCard: {
-    backgroundColor: COLORS.PRIMARY + '10',
-    borderRadius: 20,
-    padding: SPACING.PADDING.XL,
-    borderWidth: 1,
-    borderColor: COLORS.PRIMARY + '20',
-  },
-  benefitsTitle: {
-    fontSize: FONT_SIZES.MEDIUM,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    color: COLORS.PRIMARY_DARK,
-    marginBottom: SPACING.MARGIN.LG,
-    textAlign: 'center',
-  },
-  benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.MARGIN.MD,
-  },
-  benefitIcon: {
-    fontSize: 20,
-    marginRight: SPACING.MARGIN.MD,
-  },
-  benefitText: {
-    flex: 1,
-    fontSize: FONT_SIZES.REGULAR,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    color: COLORS.TEXT_PRIMARY,
+
+  bottomSpacing: {
+    height: 40,
   },
 });
-

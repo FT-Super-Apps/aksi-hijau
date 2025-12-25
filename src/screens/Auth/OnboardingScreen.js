@@ -262,7 +262,7 @@ export default function OnboardingScreen({ navigation }) {
 
       <TouchableOpacity
         style={[styles.submitButton, (!formData.name || !formData.email) && styles.submitButtonDisabled]}
-        onPress={() => navigation.replace('MainTabs')}
+        onPress={() => navigation.replace('Login')}
         disabled={!formData.name || !formData.email}
       >
         <LinearGradient

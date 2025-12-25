@@ -11,9 +11,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../constants/colors';
-import { SPACING } from '../constants/spacing';
-import { FONT_FAMILIES, FONT_SIZES } from '../constants/typography';
+import { COLORS } from '../../constants/colors';
+import { SPACING } from '../../constants/spacing';
+import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
 
 const { width, height } = Dimensions.get('window');
 

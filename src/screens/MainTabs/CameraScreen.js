@@ -8,52 +8,65 @@ import {
   Dimensions,
   StatusBar,
   Platform,
-  Image,
   TextInput,
   ScrollView,
+  FlatList,
+  Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Camera, CameraView } from 'expo-camera';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS } from '../../constants/colors';
-import { SPACING } from '../../constants/spacing';
-import { FONT_FAMILIES, FONT_SIZES } from '../../constants/typography';
+import { COLORS, SHADOWS } from '../../constants/colors';
+import { FONT_FAMILIES } from '../../constants/typography';
+import { TREE_TYPES, TREE_CATEGORIES, getTreesByCategory, searchTreeTypes } from '../../store/treeStore';
 
 const { width, height } = Dimensions.get('window');
+
+// Soft pastel colors for sections
+const SECTION_COLORS = {
+  tree: '#E8F5E9',      // Soft mint green
+  location: '#E3F2FD',  // Soft sky blue
+  notes: '#FFF8E1',     // Soft cream yellow
+  impact: '#F3E5F5',    // Soft lavender
+};
 
 export default function CameraScreen({ navigation }) {
   const [hasPermission, setHasPermission] = useState(null);
   const [showForm, setShowForm] = useState(true);
+  const [showTreePicker, setShowTreePicker] = useState(false);
   const [facing, setFacing] = useState('back');
   const [currentLocation, setCurrentLocation] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const cameraRef = useRef(null);
 
-  // Form data
   const [formData, setFormData] = useState({
-    treeType: '',
+    treeType: null,
     location: 'Mengambil lokasi...',
     coordinates: null,
-    notes: ''
+    notes: '',
+    quantity: 1,
   });
 
-  const treeTypes = [
-    'Mahoni',
-    'Mangga',
-    'Ketapang',
-    'Tabebuya',
-    'Flamboyan',
-    'Angsana',
-    'Lainnya...'
-  ];
+  const getFilteredTrees = () => {
+    let trees = getTreesByCategory(selectedCategory);
+    if (searchQuery) {
+      trees = searchTreeTypes(searchQuery);
+      if (selectedCategory !== 'all') {
+        trees = trees.filter(t => t.category === selectedCategory);
+      }
+    }
+    return trees;
+  };
 
   useEffect(() => {
     getCameraPermissions();
     getCurrentLocation();
 
-    // Reset navigation state ketika screen mendapat focus
     const unsubscribe = navigation.addListener('focus', () => {
       setIsNavigating(false);
     });
@@ -70,7 +83,6 @@ export default function CameraScreen({ navigation }) {
     try {
       setLocationLoading(true);
 
-      // Check if location permission is granted
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setFormData(prev => ({
@@ -81,12 +93,10 @@ export default function CameraScreen({ navigation }) {
         return;
       }
 
-      // Get current position
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
 
-      // Reverse geocoding to get address
       const address = await Location.reverseGeocodeAsync({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
@@ -122,15 +132,13 @@ export default function CameraScreen({ navigation }) {
       try {
         setCapturing(true);
 
-        // Ambil foto dengan quality yang lebih rendah untuk kecepatan
         const photo = await cameraRef.current.takePictureAsync({
-          quality: 0.6, // Turunkan dari 0.8 ke 0.6 untuk lebih cepat
+          quality: 0.6,
           base64: false,
-          exif: true, // Include EXIF data with location if available
-          skipProcessing: true, // Skip post-processing untuk kecepatan
+          exif: true,
+          skipProcessing: true,
         });
 
-        // Gunakan lokasi yang sudah ada atau yang sedang loading
         const photoWithLocation = {
           ...photo,
           location: formData.coordinates,
@@ -138,14 +146,16 @@ export default function CameraScreen({ navigation }) {
           address: formData.location
         };
 
-        // Set navigating state dan navigasi langsung ke preview (cepat)
         setIsNavigating(true);
         navigation.navigate('PhotoPreview', {
           photoData: photoWithLocation,
-          formData: formData
+          formData: {
+            ...formData,
+            treeType: formData.treeType?.id,
+            typeName: formData.treeType?.name,
+          }
         });
 
-        // Update lokasi di background (untuk foto berikutnya)
         getCurrentLocation().catch(console.error);
 
       } catch (error) {
@@ -153,102 +163,334 @@ export default function CameraScreen({ navigation }) {
         setIsNavigating(false);
       } finally {
         setCapturing(false);
-        // Reset navigating state setelah 2 detik
         setTimeout(() => setIsNavigating(false), 2000);
       }
     }
   };
 
+  const selectTreeType = (tree) => {
+    setFormData(prev => ({ ...prev, treeType: tree }));
+    setShowTreePicker(false);
+    setSearchQuery('');
+  };
+
+  // Tree Type Picker Modal
+  const TreePickerModal = () => (
+    <Modal
+      visible={showTreePicker}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={() => setShowTreePicker(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <TouchableOpacity 
+          style={styles.modalBackdrop}
+          onPress={() => setShowTreePicker(false)}
+          activeOpacity={1}
+        />
+        <View style={styles.bottomSheet}>
+          <View style={styles.sheetHandle}>
+            <View style={styles.handleBar} />
+          </View>
+
+          <View style={styles.sheetHeader}>
+            <View>
+              <Text style={styles.sheetTitle}>Pilih Jenis Pohon</Text>
+              <Text style={styles.sheetSubtitle}>{getFilteredTrees().length} jenis tersedia</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.sheetCloseBtn}
+              onPress={() => setShowTreePicker(false)}
+            >
+              <Text style={styles.sheetCloseIcon}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.searchContainer}>
+            <View style={styles.searchInputWrapper}>
+              <Text style={styles.searchIcon}>🔍</Text>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Cari pohon..."
+                placeholderTextColor={COLORS.GRAY_400}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Text style={styles.clearIcon}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.categoryScroll}
+            contentContainerStyle={styles.categoryScrollContent}
+          >
+            {TREE_CATEGORIES.map((category) => (
+              <TouchableOpacity
+                key={category.id}
+                style={[
+                  styles.categoryPill,
+                  selectedCategory === category.id && styles.categoryPillActive
+                ]}
+                onPress={() => setSelectedCategory(category.id)}
+              >
+                <Text style={styles.categoryPillIcon}>{category.icon}</Text>
+                <Text style={[
+                  styles.categoryPillText,
+                  selectedCategory === category.id && styles.categoryPillTextActive
+                ]}>
+                  {category.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <FlatList
+            data={getFilteredTrees()}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            contentContainerStyle={styles.treeGrid}
+            columnWrapperStyle={styles.treeGridRow}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyEmoji}>🌱</Text>
+                <Text style={styles.emptyTitle}>Tidak Ditemukan</Text>
+              </View>
+            )}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.treeCard,
+                  formData.treeType?.id === item.id && styles.treeCardActive
+                ]}
+                onPress={() => selectTreeType(item)}
+                activeOpacity={0.7}
+              >
+                {formData.treeType?.id === item.id && (
+                  <View style={styles.checkBadge}>
+                    <Text style={styles.checkIcon}>✓</Text>
+                  </View>
+                )}
+                <View style={[
+                  styles.treeIconCircle,
+                  formData.treeType?.id === item.id && styles.treeIconCircleActive
+                ]}>
+                  <Text style={styles.treeEmoji}>{item.icon}</Text>
+                </View>
+                <Text style={styles.treeName} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.treeScientific} numberOfLines={1}>{item.scientificName}</Text>
+                <View style={styles.co2Badge}>
+                  <Text style={styles.co2Text}>{item.co2PerYear} kg/th</Text>
+                </View>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+
   const renderForm = () => (
     <View style={styles.formContainer}>
-      {/* Header dengan tombol kembali */}
-      <View style={styles.formHeader}>
+      {/* Header */}
+      <LinearGradient
+        colors={[COLORS.PRIMARY, COLORS.PRIMARY_DARK]}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <TouchableOpacity
-          style={styles.backButtonForm}
+          style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backIconForm}>←</Text>
+          <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
-        <Text style={styles.formTitle}>Informasi Penanaman</Text>
+        <Text style={styles.headerTitle}>Tambah Pohon</Text>
         <View style={styles.headerSpacer} />
-      </View>
+      </LinearGradient>
 
-      <View style={styles.formField}>
-        <Text style={styles.fieldLabel}>Jenis Pohon:</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.treeTypeScroll}
-        >
-          {treeTypes.map((type) => (
-            <TouchableOpacity
-              key={type}
-              style={[
-                styles.treeTypeButton,
-                formData.treeType === type && styles.treeTypeButtonActive
-              ]}
-              onPress={() => setFormData({ ...formData, treeType: type })}
-            >
-              <Text style={[
-                styles.treeTypeText,
-                formData.treeType === type && styles.treeTypeTextActive
-              ]}>
-                {type}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-
-      <View style={styles.formField}>
-        <View style={styles.locationHeader}>
-          <Text style={styles.fieldLabel}>Lokasi: 📍</Text>
-          <TouchableOpacity
-            style={styles.refreshLocationButton}
-            onPress={getCurrentLocation}
-            disabled={locationLoading}
-          >
-            <Text style={styles.refreshLocationText}>
-              {locationLoading ? '🔄' : '📍 Refresh'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.locationText}>{formData.location}</Text>
-        <Text style={[styles.gpsStatus, { color: formData.coordinates ? COLORS.SUCCESS : COLORS.WARNING }]}>
-          {formData.coordinates ? '✓ GPS Terverifikasi' : locationLoading ? '⏳ Mengambil lokasi...' : '⚠️ Lokasi tidak tersedia'}
-        </Text>
-        {formData.coordinates && (
-          <Text style={styles.coordinatesText}>
-            Lat: {formData.coordinates.latitude.toFixed(6)}, Lng: {formData.coordinates.longitude.toFixed(6)}
-          </Text>
-        )}
-      </View>
-
-      <View style={styles.formField}>
-        <Text style={styles.fieldLabel}>Catatan:</Text>
-        <TextInput
-          style={styles.notesInput}
-          placeholder="Ditanam bersama komunitas..."
-          value={formData.notes}
-          onChangeText={(text) => setFormData({ ...formData, notes: text })}
-          multiline
-          numberOfLines={3}
-        />
-      </View>
-
-      <TouchableOpacity
-        style={styles.cameraButton}
-        onPress={() => setShowForm(false)}
-        disabled={!formData.treeType}
+      {/* Form Content - Full Width Sections */}
+      <KeyboardAvoidingView 
+        style={styles.formWrapper}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <LinearGradient
-          colors={formData.treeType ? [COLORS.PRIMARY, COLORS.PRIMARY_DARK] : [COLORS.GRAY_200, COLORS.GRAY_300]}
-          style={styles.cameraButtonGradient}
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.formContent}
         >
-          <Text style={styles.cameraButtonIcon}>📷</Text>
-          <Text style={styles.cameraButtonText}>Ambil Foto</Text>
-        </LinearGradient>
-      </TouchableOpacity>
+          {/* Section 1: Tree Selection - Full Width */}
+          <View style={[styles.section, { backgroundColor: SECTION_COLORS.tree }]}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionIconWrapper}>
+                <Text style={styles.sectionIcon}>🌳</Text>
+              </View>
+              <Text style={styles.sectionTitle}>Jenis Pohon</Text>
+            </View>
+            
+            <TouchableOpacity
+              style={styles.treeSelector}
+              onPress={() => setShowTreePicker(true)}
+              activeOpacity={0.8}
+            >
+              {formData.treeType ? (
+                <View style={styles.selectedTreeRow}>
+                  <Text style={styles.selectedTreeEmoji}>{formData.treeType.icon}</Text>
+                  <View style={styles.selectedTreeInfo}>
+                    <Text style={styles.selectedTreeName}>{formData.treeType.name}</Text>
+                    <Text style={styles.selectedTreeCO2}>{formData.treeType.co2PerYear} kg CO₂/tahun</Text>
+                  </View>
+                  <View style={styles.changeBtn}>
+                    <Text style={styles.changeBtnText}>Ubah</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.treePlaceholder}>
+                  <Text style={styles.placeholderText}>Ketuk untuk memilih pohon</Text>
+                  <Text style={styles.placeholderArrow}>→</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Quick Select */}
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.quickSelect}
+            >
+              {TREE_TYPES.slice(0, 5).map((tree) => (
+                <TouchableOpacity
+                  key={tree.id}
+                  style={[
+                    styles.quickChip,
+                    formData.treeType?.id === tree.id && styles.quickChipActive
+                  ]}
+                  onPress={() => setFormData(prev => ({ ...prev, treeType: tree }))}
+                >
+                  <Text style={styles.quickChipEmoji}>{tree.icon}</Text>
+                  <Text style={[
+                    styles.quickChipText,
+                    formData.treeType?.id === tree.id && styles.quickChipTextActive
+                  ]}>
+                    {tree.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Section 2: Location - Full Width */}
+          <View style={[styles.section, { backgroundColor: SECTION_COLORS.location }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIconWrapper, { backgroundColor: '#BBDEFB' }]}>
+                <Text style={styles.sectionIcon}>📍</Text>
+              </View>
+              <Text style={styles.sectionTitle}>Lokasi</Text>
+              <TouchableOpacity
+                style={styles.refreshBtn}
+                onPress={getCurrentLocation}
+                disabled={locationLoading}
+              >
+                <Text style={styles.refreshBtnText}>{locationLoading ? '...' : '↻'}</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.locationText} numberOfLines={2}>{formData.location}</Text>
+            
+            {formData.coordinates && (
+              <View style={styles.coordsRow}>
+                <View style={styles.coordBadge}>
+                  <Text style={styles.coordText}>
+                    {formData.coordinates.latitude.toFixed(5)}, {formData.coordinates.longitude.toFixed(5)}
+                  </Text>
+                </View>
+                <View style={styles.gpsStatus}>
+                  <View style={styles.gpsDot} />
+                  <Text style={styles.gpsText}>GPS Aktif</Text>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Section 3: Notes - Full Width */}
+          <View style={[styles.section, { backgroundColor: SECTION_COLORS.notes }]}>
+            <View style={styles.sectionHeader}>
+              <View style={[styles.sectionIconWrapper, { backgroundColor: '#FFE082' }]}>
+                <Text style={styles.sectionIcon}>📝</Text>
+              </View>
+              <Text style={styles.sectionTitle}>Catatan</Text>
+              <Text style={styles.optionalBadge}>Opsional</Text>
+            </View>
+            
+            <TextInput
+              style={styles.notesInput}
+              placeholder="Tambahkan catatan tentang penanaman..."
+              placeholderTextColor={COLORS.GRAY_400}
+              value={formData.notes}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, notes: text }))}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+          </View>
+
+          {/* Section 4: Impact Preview - Full Width */}
+          {formData.treeType && (
+            <View style={[styles.section, { backgroundColor: SECTION_COLORS.impact }]}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionIconWrapper, { backgroundColor: '#E1BEE7' }]}>
+                  <Text style={styles.sectionIcon}>🌍</Text>
+                </View>
+                <Text style={styles.sectionTitle}>Estimasi Dampak</Text>
+              </View>
+              
+              <View style={styles.impactGrid}>
+                <View style={styles.impactBox}>
+                  <Text style={styles.impactValue}>{formData.treeType.co2PerYear}</Text>
+                  <Text style={styles.impactLabel}>kg CO₂/tahun</Text>
+                </View>
+                <View style={styles.impactBox}>
+                  <Text style={styles.impactValue}>{(formData.treeType.co2PerYear * 0.73).toFixed(1)}</Text>
+                  <Text style={styles.impactLabel}>kg O₂/tahun</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Section 5: CTA Button - Full Width */}
+          <View style={styles.ctaSection}>
+            <TouchableOpacity
+              style={[
+                styles.ctaButton,
+                !formData.treeType && styles.ctaButtonDisabled
+              ]}
+              onPress={() => setShowForm(false)}
+              disabled={!formData.treeType}
+              activeOpacity={0.9}
+            >
+              <LinearGradient
+                colors={formData.treeType ? [COLORS.PRIMARY, COLORS.PRIMARY_DARK] : [COLORS.GRAY_300, COLORS.GRAY_400]}
+                style={styles.ctaGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.ctaIcon}>📷</Text>
+                <Text style={styles.ctaText}>
+                  {formData.treeType ? `Foto ${formData.treeType.name}` : 'Pilih pohon dulu'}
+                </Text>
+                <Text style={styles.ctaArrow}>→</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <TreePickerModal />
     </View>
   );
 
@@ -259,64 +501,62 @@ export default function CameraScreen({ navigation }) {
         style={styles.camera}
         facing={facing}
       >
-        {/* Header Controls */}
         <View style={styles.cameraHeader}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={styles.camBackBtn}
             onPress={() => setShowForm(true)}
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Text style={styles.camBackIcon}>←</Text>
           </TouchableOpacity>
 
-          <Text style={styles.cameraTitle}>Dokumentasi Pohon</Text>
+          <View style={styles.camInfoPill}>
+            <Text style={styles.camInfoEmoji}>{formData.treeType?.icon}</Text>
+            <Text style={styles.camInfoText}>{formData.treeType?.name}</Text>
+          </View>
 
           <TouchableOpacity
-            style={styles.flipButton}
+            style={styles.camFlipBtn}
             onPress={() => setFacing(facing === 'back' ? 'front' : 'back')}
           >
-            <Text style={styles.flipIcon}>🔄</Text>
+            <Text style={styles.camFlipIcon}>🔄</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Location Info Overlay */}
-        <View style={styles.locationOverlay}>
-          <Text style={styles.overlayText}>📍 {formData.location}</Text>
-          {formData.coordinates && (
-            <Text style={styles.overlayText}>
-              🧭 Lat: {formData.coordinates.latitude.toFixed(4)}, Lng: {formData.coordinates.longitude.toFixed(4)}
-            </Text>
-          )}
-          <Text style={styles.overlayText}>🕐 {new Date().toLocaleTimeString('id-ID')}</Text>
+        <View style={styles.camOverlay}>
+          <View style={styles.camOverlayRow}>
+            <Text style={styles.camOverlayIcon}>📍</Text>
+            <Text style={styles.camOverlayText} numberOfLines={1}>{formData.location}</Text>
+          </View>
         </View>
 
-        {/* Grid Lines */}
-        <View style={styles.gridLines}>
-          <View style={styles.gridLine} />
-          <View style={[styles.gridLine, styles.gridLineVertical]} />
-          <View style={[styles.gridLine, styles.gridLineHorizontal1]} />
-          <View style={[styles.gridLine, styles.gridLineHorizontal2]} />
+        <View style={styles.viewfinder}>
+          <View style={[styles.corner, styles.cornerTL]} />
+          <View style={[styles.corner, styles.cornerTR]} />
+          <View style={[styles.corner, styles.cornerBL]} />
+          <View style={[styles.corner, styles.cornerBR]} />
         </View>
 
-        {/* Camera Controls */}
-        <View style={styles.cameraControls}>
-          <TouchableOpacity style={styles.flashButton}>
-            <Text style={styles.controlText}>⚡ Flash</Text>
+        <View style={styles.camTip}>
+          <Text style={styles.camTipText}>Arahkan kamera ke pohon</Text>
+        </View>
+
+        <View style={styles.camControls}>
+          <TouchableOpacity style={styles.camSideBtn}>
+            <Text style={styles.camSideIcon}>⚡</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.captureButton, (capturing || isNavigating) && styles.captureButtonDisabled]}
+            style={[styles.captureBtn, (capturing || isNavigating) && styles.captureBtnDisabled]}
             onPress={takePicture}
             disabled={capturing || isNavigating}
           >
-            <View style={styles.captureButtonInner}>
-              <Text style={styles.captureIcon}>
-                {capturing ? '📸' : isNavigating ? '➡️' : '📷'}
-              </Text>
+            <View style={styles.captureBtnRing}>
+              <View style={styles.captureBtnInner} />
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.galleryButton}>
-            <Text style={styles.controlText}>🖼️ Gallery</Text>
+          <TouchableOpacity style={styles.camSideBtn}>
+            <Text style={styles.camSideIcon}>🖼️</Text>
           </TouchableOpacity>
         </View>
       </CameraView>
@@ -325,23 +565,23 @@ export default function CameraScreen({ navigation }) {
 
   if (hasPermission === null) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text>Meminta izin kamera...</Text>
+      <View style={styles.loadingScreen}>
+        <Text style={styles.loadingEmoji}>📷</Text>
+        <Text style={styles.loadingText}>Meminta izin kamera...</Text>
       </View>
     );
   }
 
   if (hasPermission === false) {
     return (
-      <View style={styles.noPermissionContainer}>
-        <Text style={styles.noPermissionText}>
-          Akses kamera tidak diberikan
+      <View style={styles.permissionScreen}>
+        <Text style={styles.permissionEmoji}>📵</Text>
+        <Text style={styles.permissionTitle}>Izin Kamera Diperlukan</Text>
+        <Text style={styles.permissionText}>
+          Aplikasi memerlukan akses kamera untuk dokumentasi.
         </Text>
-        <TouchableOpacity
-          style={styles.permissionButton}
-          onPress={getCameraPermissions}
-        >
-          <Text style={styles.permissionButtonText}>Coba Lagi</Text>
+        <TouchableOpacity style={styles.permissionBtn} onPress={getCameraPermissions}>
+          <Text style={styles.permissionBtnText}>Izinkan Kamera</Text>
         </TouchableOpacity>
       </View>
     );
@@ -349,8 +589,7 @@ export default function CameraScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent />
-
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.PRIMARY} />
       {showForm ? renderForm() : renderCameraView()}
     </View>
   );
@@ -359,190 +598,573 @@ export default function CameraScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.BLACK,
+    backgroundColor: '#F5F7FA',
   },
 
-  // Loading & Permission Styles
-  loadingContainer: {
+  // Loading & Permission
+  loadingScreen: {
     flex: 1,
+    backgroundColor: '#F5F7FA',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.BACKGROUND,
   },
-  noPermissionContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.BACKGROUND,
-    padding: SPACING.PADDING.XL,
+  loadingEmoji: {
+    fontSize: 56,
+    marginBottom: 16,
   },
-  noPermissionText: {
-    fontSize: FONT_SIZES.H5,
-    color: COLORS.TEXT_PRIMARY,
+  loadingText: {
+    fontSize: 16,
+    color: COLORS.TEXT_SECONDARY,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-    textAlign: 'center',
-    marginBottom: SPACING.MARGIN.XL,
   },
-  permissionButton: {
-    backgroundColor: COLORS.PRIMARY,
-    paddingHorizontal: SPACING.PADDING.XL,
-    paddingVertical: SPACING.PADDING.MD,
-    borderRadius: 12,
-  },
-  permissionButtonText: {
-    color: COLORS.WHITE,
-    fontSize: FONT_SIZES.MEDIUM,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-  },
-
-  // Form Styles
-  formContainer: {
+  permissionScreen: {
     flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
-    padding: SPACING.PADDING.XL,
-    paddingTop: Platform.OS === 'ios' ? 60 : 45,
+    backgroundColor: '#F5F7FA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
   },
-  formTitle: {
-    fontSize: FONT_SIZES.H4,
+  permissionEmoji: {
+    fontSize: 64,
+    marginBottom: 20,
+  },
+  permissionTitle: {
+    fontSize: 20,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
+    marginBottom: 10,
+  },
+  permissionText: {
+    fontSize: 14,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
     textAlign: 'center',
+    marginBottom: 24,
+  },
+  permissionBtn: {
+    backgroundColor: COLORS.PRIMARY,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  permissionBtnText: {
+    color: COLORS.WHITE,
+    fontSize: 15,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+
+  // Form
+  formContainer: {
+    flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'ios' ? 56 : 44,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backIcon: {
+    fontSize: 22,
+    color: COLORS.WHITE,
+  },
+  headerTitle: {
+    flex: 1,
+    fontSize: 18,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    textAlign: 'center',
+  },
+  headerSpacer: {
+    width: 42,
+  },
+
+  formWrapper: {
     flex: 1,
   },
-  formHeader: {
+  formContent: {
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+
+  // Sections - Full Width
+  section: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  sectionIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#C8E6C9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  sectionIcon: {
+    fontSize: 20,
+  },
+  sectionTitle: {
+    flex: 1,
+    fontSize: 16,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+
+  // Tree Selection
+  treeSelector: {
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: COLORS.PRIMARY + '30',
+    overflow: 'hidden',
+  },
+  treePlaceholder: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING.MARGIN.XL,
+    padding: 16,
   },
-  backButtonForm: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.WHITE,
-    justifyContent: 'center',
+  placeholderText: {
+    fontSize: 15,
+    color: COLORS.GRAY_400,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+  },
+  placeholderArrow: {
+    fontSize: 20,
+    color: COLORS.PRIMARY,
+  },
+  selectedTreeRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: COLORS.BLACK,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    padding: 14,
   },
-  backIconForm: {
-    fontSize: 24,
+  selectedTreeEmoji: {
+    fontSize: 32,
+    marginRight: 14,
+  },
+  selectedTreeInfo: {
+    flex: 1,
+  },
+  selectedTreeName: {
+    fontSize: 16,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
-  headerSpacer: {
-    width: 40,
+  selectedTreeCO2: {
+    fontSize: 13,
+    color: COLORS.SUCCESS,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    marginTop: 2,
   },
-  formField: {
-    marginBottom: SPACING.MARGIN.XL,
-  },
-  fieldLabel: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-    marginBottom: SPACING.MARGIN.SM,
-  },
-  treeTypeScroll: {
-    flexGrow: 0,
-  },
-  treeTypeButton: {
-    paddingHorizontal: 16,
+  changeBtn: {
+    backgroundColor: COLORS.PRIMARY + '15',
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.WHITE,
-    marginRight: SPACING.MARGIN.SM,
-    borderWidth: 1,
-    borderColor: COLORS.BORDER,
+    borderRadius: 10,
   },
-  treeTypeButtonActive: {
+  changeBtnText: {
+    fontSize: 13,
+    color: COLORS.PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+
+  // Quick Select
+  quickSelect: {
+    marginTop: 14,
+  },
+  quickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.WHITE,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: COLORS.PRIMARY + '25',
+  },
+  quickChipActive: {
     backgroundColor: COLORS.PRIMARY,
     borderColor: COLORS.PRIMARY,
   },
-  treeTypeText: {
-    fontSize: FONT_SIZES.SMALL,
+  quickChipEmoji: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  quickChipText: {
+    fontSize: 13,
     color: COLORS.TEXT_PRIMARY,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
-  treeTypeTextActive: {
+  quickChipTextActive: {
     color: COLORS.WHITE,
   },
-  locationText: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+
+  // Location
+  refreshBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: COLORS.WHITE,
-    padding: SPACING.PADDING.MD,
-    borderRadius: 12,
-    marginBottom: SPACING.MARGIN.SM,
-  },
-  gpsStatus: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.SUCCESS,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-  },
-  locationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.MARGIN.SM,
   },
-  refreshLocationButton: {
+  refreshBtnText: {
+    fontSize: 18,
+    color: COLORS.PRIMARY,
+  },
+  locationText: {
+    fontSize: 15,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  coordsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  coordBadge: {
     backgroundColor: COLORS.WHITE,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: COLORS.BORDER,
+    borderRadius: 8,
   },
-  refreshLocationText: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.TEXT_PRIMARY,
+  coordText: {
+    fontSize: 12,
+    color: COLORS.TEXT_TERTIARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+  },
+  gpsStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  gpsDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.SUCCESS,
+    marginRight: 6,
+  },
+  gpsText: {
+    fontSize: 12,
+    color: COLORS.SUCCESS,
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
-  coordinatesText: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.TEXT_SECONDARY,
+
+  // Notes
+  optionalBadge: {
+    fontSize: 11,
+    color: COLORS.TEXT_TERTIARY,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    fontStyle: 'italic',
-    marginTop: SPACING.MARGIN.XS,
+    backgroundColor: COLORS.WHITE,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   notesInput: {
     backgroundColor: COLORS.WHITE,
-    borderRadius: 12,
-    padding: SPACING.PADDING.MD,
-    fontSize: FONT_SIZES.REGULAR,
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 14,
     fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    textAlignVertical: 'top',
-    minHeight: 80,
+    color: COLORS.TEXT_PRIMARY,
+    minHeight: 70,
+    lineHeight: 20,
   },
-  cameraButton: {
+
+  // Impact
+  impactGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  impactBox: {
+    flex: 1,
+    backgroundColor: COLORS.WHITE,
+    borderRadius: 14,
+    padding: 16,
+    alignItems: 'center',
+  },
+  impactValue: {
+    fontSize: 24,
+    color: COLORS.PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  impactLabel: {
+    fontSize: 11,
+    color: COLORS.TEXT_TERTIARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    marginTop: 4,
+  },
+
+  // Bottom Spacer
+  bottomSpacer: {
+    height: 40,
+  },
+
+  // CTA Section - Inline with form
+  ctaSection: {
+    backgroundColor: '#F5F7FA',
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+  },
+  ctaButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    marginTop: SPACING.MARGIN.XL,
+    ...SHADOWS.GLOW_PRIMARY,
   },
-  cameraButtonGradient: {
+  ctaButtonDisabled: {
+    opacity: 0.6,
+  },
+  ctaGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: SPACING.PADDING.LG,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
   },
-  cameraButtonIcon: {
+  ctaIcon: {
     fontSize: 24,
-    marginRight: SPACING.MARGIN.SM,
+    marginRight: 12,
   },
-  cameraButtonText: {
-    fontSize: FONT_SIZES.MEDIUM,
+  ctaText: {
+    flex: 1,
+    fontSize: 16,
     color: COLORS.WHITE,
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
+  ctaArrow: {
+    fontSize: 22,
+    color: COLORS.WHITE,
+    opacity: 0.8,
+  },
 
-  // Camera Styles
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    flex: 1,
+  },
+  bottomSheet: {
+    backgroundColor: COLORS.WHITE,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: height * 0.85,
+  },
+  sheetHandle: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  handleBar: {
+    width: 40,
+    height: 4,
+    backgroundColor: COLORS.GRAY_300,
+    borderRadius: 2,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+  },
+  sheetTitle: {
+    fontSize: 20,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  sheetSubtitle: {
+    fontSize: 13,
+    color: COLORS.TEXT_TERTIARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    marginTop: 2,
+  },
+  sheetCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.GRAY_100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sheetCloseIcon: {
+    fontSize: 16,
+    color: COLORS.TEXT_SECONDARY,
+  },
+
+  // Search
+  searchContainer: {
+    paddingHorizontal: 24,
+    marginBottom: 14,
+  },
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.GRAY_100,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+  },
+  searchIcon: {
+    fontSize: 16,
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    color: COLORS.TEXT_PRIMARY,
+  },
+  clearIcon: {
+    fontSize: 14,
+    color: COLORS.GRAY_400,
+  },
+
+  // Category Pills
+  categoryScroll: {
+    marginBottom: 14,
+  },
+  categoryScrollContent: {
+    paddingHorizontal: 24,
+  },
+  categoryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.GRAY_100,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  categoryPillActive: {
+    backgroundColor: COLORS.PRIMARY,
+  },
+  categoryPillIcon: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  categoryPillText: {
+    fontSize: 13,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
+  categoryPillTextActive: {
+    color: COLORS.WHITE,
+  },
+
+  // Tree Grid
+  treeGrid: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+  },
+  treeGridRow: {
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  treeCard: {
+    width: (width - 52) / 2,
+    backgroundColor: COLORS.GRAY_50,
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  treeCardActive: {
+    borderColor: COLORS.PRIMARY,
+    backgroundColor: SECTION_COLORS.tree,
+  },
+  checkBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: COLORS.PRIMARY,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkIcon: {
+    color: COLORS.WHITE,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  treeIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: COLORS.WHITE,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  treeIconCircleActive: {
+    backgroundColor: COLORS.PRIMARY + '20',
+  },
+  treeEmoji: {
+    fontSize: 26,
+  },
+  treeName: {
+    fontSize: 14,
+    color: COLORS.TEXT_PRIMARY,
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  treeScientific: {
+    fontSize: 10,
+    color: COLORS.TEXT_TERTIARY,
+    fontFamily: FONT_FAMILIES.SORA.REGULAR,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  co2Badge: {
+    backgroundColor: COLORS.SUCCESS + '15',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  co2Text: {
+    fontSize: 11,
+    color: COLORS.SUCCESS,
+    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyEmoji: {
+    fontSize: 48,
+    marginBottom: 10,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    color: COLORS.TEXT_SECONDARY,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
+
+  // Camera View
   cameraContainer: {
     flex: 1,
   },
@@ -553,239 +1175,177 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 60 : 45,
-    paddingHorizontal: SPACING.PADDING.XL,
-    paddingBottom: SPACING.PADDING.MD,
+    paddingTop: Platform.OS === 'ios' ? 56 : 44,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+  camBackBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  backIcon: {
+  camBackIcon: {
     fontSize: 24,
     color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
-  cameraTitle: {
-    fontSize: FONT_SIZES.H5,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    textAlign: 'center',
-    flex: 1,
-  },
-  flipButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  camInfoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+  },
+  camInfoEmoji: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  camInfoText: {
+    fontSize: 15,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  },
+  camFlipBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  flipIcon: {
+  camFlipIcon: {
     fontSize: 20,
   },
-  locationOverlay: {
+  camOverlay: {
     position: 'absolute',
-    top: 150,
-    left: SPACING.PADDING.XL,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: SPACING.PADDING.SM,
-    borderRadius: 8,
+    top: 120,
+    left: 20,
+    right: 20,
   },
-  overlayText: {
-    fontSize: FONT_SIZES.SMALL,
+  camOverlayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  camOverlayIcon: {
+    fontSize: 14,
+    marginRight: 10,
+  },
+  camOverlayText: {
+    flex: 1,
+    fontSize: 13,
     color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-    marginBottom: 2,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
-  gridLines: {
+  viewfinder: {
     position: 'absolute',
+    top: '28%',
+    left: '10%',
+    right: '10%',
+    bottom: '30%',
+  },
+  corner: {
+    position: 'absolute',
+    width: 32,
+    height: 32,
+    borderColor: COLORS.WHITE,
+  },
+  cornerTL: {
     top: 0,
     left: 0,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+    borderTopLeftRadius: 8,
+  },
+  cornerTR: {
+    top: 0,
     right: 0,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+    borderTopRightRadius: 8,
+  },
+  cornerBL: {
     bottom: 0,
+    left: 0,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    borderBottomLeftRadius: 8,
   },
-  gridLine: {
+  cornerBR: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    borderBottomRightRadius: 8,
+  },
+  camTip: {
     position: 'absolute',
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    bottom: 160,
+    left: 20,
+    right: 20,
+    alignItems: 'center',
   },
-  gridLineVertical: {
-    width: 1,
-    height: '100%',
-    left: '50%',
+  camTipText: {
+    fontSize: 13,
+    color: COLORS.WHITE,
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
-  gridLineHorizontal1: {
-    height: 1,
-    width: '100%',
-    top: '33%',
-  },
-  gridLineHorizontal2: {
-    height: 1,
-    width: '100%',
-    top: '66%',
-  },
-  cameraControls: {
+  camControls: {
     position: 'absolute',
-    bottom: 40,
+    bottom: 50,
     left: 0,
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.PADDING.XL,
+    justifyContent: 'center',
+    paddingHorizontal: 40,
   },
-  flashButton: {
-    flex: 1,
+  camSideBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  controlText: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
+  camSideIcon: {
+    fontSize: 22,
   },
-  captureButton: {
+  captureBtn: {
     width: 80,
     height: 80,
     borderRadius: 40,
     backgroundColor: COLORS.WHITE,
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: SPACING.MARGIN.XL,
+    marginHorizontal: 30,
   },
-  captureButtonDisabled: {
-    opacity: 0.7,
+  captureBtnDisabled: {
+    opacity: 0.6,
   },
-  captureButtonInner: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  captureBtnRing: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    borderWidth: 4,
+    borderColor: COLORS.PRIMARY,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  captureBtnInner: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: COLORS.PRIMARY,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  captureIcon: {
-    fontSize: 32,
-  },
-  galleryButton: {
-    flex: 1,
-    alignItems: 'center',
-  },
-
-  // Preview Styles
-  previewContainer: {
-    flex: 1,
-    backgroundColor: COLORS.BACKGROUND,
-  },
-  previewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 60 : 45,
-    paddingHorizontal: SPACING.PADDING.XL,
-    paddingBottom: SPACING.PADDING.MD,
-    backgroundColor: COLORS.WHITE,
-  },
-  previewTitle: {
-    fontSize: FONT_SIZES.H5,
-    color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-    flex: 1,
-    textAlign: 'center',
-  },
-  retakeButton: {
-    padding: SPACING.PADDING.SM,
-  },
-  retakeText: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-  },
-  previewImage: {
-    width: '100%',
-    height: 300,
-    resizeMode: 'cover',
-  },
-  verificationInfo: {
-    backgroundColor: COLORS.WHITE,
-    padding: SPACING.PADDING.LG,
-  },
-  verificationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.MARGIN.SM,
-  },
-  checkIcon: {
-    fontSize: 20,
-    color: COLORS.SUCCESS,
-    marginRight: SPACING.MARGIN.SM,
-  },
-  verificationText: {
-    fontSize: FONT_SIZES.REGULAR,
-    color: COLORS.TEXT_PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.REGULAR,
-  },
-  previewActions: {
-    padding: SPACING.PADDING.XL,
-    backgroundColor: COLORS.WHITE,
-  },
-  uploadButton: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: SPACING.MARGIN.MD,
-  },
-  uploadButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: SPACING.PADDING.LG,
-  },
-  uploadButtonIcon: {
-    fontSize: 24,
-    marginRight: SPACING.MARGIN.SM,
-  },
-  uploadButtonText: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.WHITE,
-    fontFamily: FONT_FAMILIES.SORA.BOLD,
-  },
-  editButton: {
-    backgroundColor: COLORS.BACKGROUND,
-    borderRadius: 12,
-    paddingVertical: SPACING.PADDING.LG,
-    alignItems: 'center',
-  },
-  editButtonText: {
-    fontSize: FONT_SIZES.MEDIUM,
-    color: COLORS.PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-  },
-
-  // Location styles
-  locationHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.MARGIN.XS,
-  },
-  refreshLocationButton: {
-    backgroundColor: COLORS.PRIMARY_LIGHT,
-    paddingHorizontal: SPACING.PADDING.SM,
-    paddingVertical: SPACING.PADDING.XS,
-    borderRadius: 8,
-  },
-  refreshLocationText: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.PRIMARY,
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-  },
-  coordinatesText: {
-    fontSize: FONT_SIZES.SMALL,
-    color: COLORS.TEXT_SECONDARY,
-    fontFamily: FONT_FAMILIES.KULIM_PARK.REGULAR,
-    marginTop: SPACING.MARGIN.XS,
   },
 });

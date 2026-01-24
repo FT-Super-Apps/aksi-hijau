@@ -237,8 +237,13 @@ export default function ProfileScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Header */}
-      <View style={styles.headerContainer}>
+      {/* Content - All Scrollable */}
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Header with Gradient - Scrollable */}
         <LinearGradient
           colors={GRADIENT_COLORS.HEADER}
           start={{ x: 0, y: 0 }}
@@ -320,15 +325,8 @@ export default function ProfileScreen({ navigation }) {
           </Animated.View>
         </LinearGradient>
 
-        <View style={styles.curvedBottom} />
-      </View>
-
-      {/* Content */}
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+        {/* Main Content */}
+        <View style={styles.content}>
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
           <GlassCard variant="light" style={styles.statCard}>
@@ -485,6 +483,7 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         <View style={styles.bottomSpacing} />
+        </View>
       </ScrollView>
     </View>
   );
@@ -496,14 +495,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.BACKGROUND,
   },
 
-  // Header
-  headerContainer: {
-    position: 'relative',
+  // Scroll View
+  scrollView: {
+    flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+
+  // Header - Scrollable
   header: {
     paddingTop: Platform.OS === 'ios' ? 60 : 48,
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 30,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     overflow: 'hidden',
   },
   blob1: {
@@ -547,15 +553,11 @@ const styles = StyleSheet.create({
   editIcon: {
     fontSize: 18,
   },
-  curvedBottom: {
-    position: 'absolute',
-    bottom: -2,
-    left: 0,
-    right: 0,
-    height: 30,
-    backgroundColor: COLORS.BACKGROUND,
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+
+  // Content
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
 
   // Profile Section
@@ -653,17 +655,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255,255,255,0.7)',
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-  },
-
-  // Scroll View
-  scrollView: {
-    flex: 1,
-    marginTop: -30,
-  },
-  scrollContent: {
-    paddingTop: 40,
-    paddingHorizontal: 20,
-    paddingBottom: 100,
   },
 
   // Stats

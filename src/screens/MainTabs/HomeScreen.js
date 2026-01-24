@@ -249,17 +249,6 @@ export default function HomeScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Gradient Background */}
-      <LinearGradient
-        colors={['#059669', '#047857', '#065F46']}
-        style={styles.headerBg}
-      >
-        {/* Decorative Elements */}
-        <View style={styles.decorCircle1} />
-        <View style={styles.decorCircle2} />
-        <View style={styles.decorPattern} />
-      </LinearGradient>
-
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -270,77 +259,93 @@ export default function HomeScreen({ navigation }) {
         )}
         scrollEventThrottle={16}
       >
-        {/* Header Section */}
-        <Animated.View
-          style={[
-            styles.header,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
-            },
-          ]}
+        {/* Header with Gradient - Scrollable */}
+        <LinearGradient
+          colors={['#059669', '#047857', '#065F46']}
+          style={styles.headerGradient}
         >
-          {/* Top Row */}
-          <View style={styles.topRow}>
-            <View style={styles.greetingSection}>
-              <Text style={styles.greetingText}>
-                {greeting.icon} {greeting.text}
-              </Text>
-              <Text style={styles.userName}>{userData.name.split(' ')[0]}!</Text>
-            </View>
+          {/* Decorative Elements */}
+          <View style={styles.decorCircle1} />
+          <View style={styles.decorCircle2} />
 
-            <View style={styles.topActions}>
-              <AnimatedPressable 
-                style={styles.iconButton}
-                onPress={() => navigation.navigate('Notifications')}
-              >
-                <Text style={styles.iconButtonText}>🔔</Text>
-                <View style={styles.notifBadge}>
-                  <Text style={styles.notifBadgeText}>3</Text>
-                </View>
-              </AnimatedPressable>
-            </View>
-          </View>
-
-          {/* Profile Card */}
-          <View style={styles.profileCard}>
-            <View style={styles.profileLeft}>
-              <View style={styles.avatarWrapper}>
-                {/* Level ring */}
-                <View style={styles.levelRing}>
-                  <View style={[styles.levelRingProgress, { 
-                    transform: [{ rotate: `${levelProgress * 360}deg` }]
-                  }]} />
-                </View>
-                <Image source={userData.profileImage} style={styles.avatar} />
-                <View style={styles.levelBadgeSmall}>
-                  <Text style={styles.levelBadgeText}>{userData.level}</Text>
+          {/* Header Content */}
+          <Animated.View
+            style={[
+              styles.header,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+              },
+            ]}
+          >
+            {/* Top Row - Greeting + Streak + Notification (Inline) */}
+            <View style={styles.topRow}>
+              {/* Left: Greeting */}
+              <View style={styles.greetingSection}>
+                <View style={styles.greetingRow}>
+                  <View style={[styles.greetingIconBg, { backgroundColor: greeting.color + '30' }]}>
+                    <Text style={styles.greetingEmoji}>{greeting.icon}</Text>
+                  </View>
+                  <View style={styles.greetingTextContainer}>
+                    <Text style={styles.greetingText}>{greeting.text},</Text>
+                    <Text style={styles.userName}>{userData.name.split(' ')[0]}</Text>
+                  </View>
                 </View>
               </View>
-              
-              <View style={styles.profileInfo}>
-                <Text style={styles.levelName}>{userData.levelName}</Text>
-                <View style={styles.xpBar}>
-                  <View style={[styles.xpBarFill, { width: `${levelProgress * 100}%` }]} />
-                </View>
-                <Text style={styles.xpText}>
-                  {stats.totalPoints % 500} / 500 XP ke level {(stats.level || 1) + 1}
-                </Text>
+
+              {/* Right: Streak + Notification */}
+              <View style={styles.topActions}>
+                {/* Streak Pill */}
+                <Animated.View style={[styles.streakPill, { transform: [{ scale: pulseAnim }] }]}>
+                  <Text style={styles.streakFireIcon}>🔥</Text>
+                  <Text style={styles.streakPillValue}>{userData.streak}</Text>
+                </Animated.View>
+
+                {/* Notification */}
+                <AnimatedPressable 
+                  style={styles.iconButton}
+                  onPress={() => navigation.navigate('Notifications')}
+                >
+                  <Text style={styles.iconButtonText}>🔔</Text>
+                  <View style={styles.notifBadge}>
+                    <Text style={styles.notifBadgeText}>3</Text>
+                  </View>
+                </AnimatedPressable>
               </View>
             </View>
 
-            <View style={styles.streakContainer}>
-              <LinearGradient
-                colors={['#FF6B6B', '#FF4757']}
-                style={styles.streakBadge}
-              >
-                <Text style={styles.streakIcon}>🔥</Text>
-                <Text style={styles.streakValue}>{userData.streak}</Text>
-                <Text style={styles.streakLabel}>hari</Text>
-              </LinearGradient>
+            {/* Profile Card - Avatar + Points Only */}
+            <View style={styles.profileCard}>
+              <View style={styles.profileLeft}>
+                <View style={styles.avatarWrapper}>
+                  <Image source={userData.profileImage} style={styles.avatar} />
+                  <View style={styles.levelBadgeSmall}>
+                    <Text style={styles.levelBadgeText}>{userData.level}</Text>
+                  </View>
+                </View>
+                
+                <View style={styles.profileInfo}>
+                  <Text style={styles.profileName}>{userData.name}</Text>
+                  <Text style={styles.levelName}>{userData.levelName}</Text>
+                  {/* Mini XP Bar */}
+                  <View style={styles.miniXpContainer}>
+                    <View style={styles.miniXpBar}>
+                      <View style={[styles.miniXpBarFill, { width: `${levelProgress * 100}%` }]} />
+                    </View>
+                    <Text style={styles.miniXpText}>{Math.round(levelProgress * 100)}%</Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* Points Badge */}
+              <View style={styles.pointsBadge}>
+                <Text style={styles.pointsBadgeIcon}>⭐</Text>
+                <Text style={styles.pointsBadgeValue}>{userData.points}</Text>
+                <Text style={styles.pointsBadgeLabel}>poin</Text>
+              </View>
             </View>
-          </View>
-        </Animated.View>
+          </Animated.View>
+        </LinearGradient>
 
         {/* Main Content */}
         <View style={styles.content}>
@@ -421,10 +426,21 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             <View style={styles.quickActionsGrid}>
-              {quickActions.map((action, index) => 
-                renderAnimatedView(2 + index,
+              {quickActions.map((action, index) => (
+                <Animated.View
+                  key={action.id}
+                  style={[
+                    styles.quickActionWrapper,
+                    {
+                      opacity: cardAnims[2 + index]?.opacity || 1,
+                      transform: [
+                        { translateY: cardAnims[2 + index]?.translateY || 0 },
+                        { scale: cardAnims[2 + index]?.scale || 1 },
+                      ],
+                    },
+                  ]}
+                >
                   <AnimatedPressable 
-                    key={action.id}
                     onPress={action.onPress}
                     scaleValue={0.95}
                   >
@@ -440,8 +456,8 @@ export default function HomeScreen({ navigation }) {
                       <Text style={styles.quickActionSubtitle}>{action.subtitle}</Text>
                     </LinearGradient>
                   </AnimatedPressable>
-                , styles.quickActionWrapper)
-              )}
+                </Animated.View>
+              ))}
             </View>
           </View>
 
@@ -582,15 +598,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0FDF4',
   },
 
-  // Background
-  headerBg: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 380,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+  // Scroll
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+
+  // Header Gradient - Scrollable
+  headerGradient: {
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: 'hidden',
   },
   decorCircle1: {
     position: 'absolute',
@@ -603,64 +624,89 @@ const styles = StyleSheet.create({
   },
   decorCircle2: {
     position: 'absolute',
-    top: 150,
+    top: 120,
     left: -60,
     width: 140,
     height: 140,
     borderRadius: 70,
     backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  decorPattern: {
-    position: 'absolute',
-    bottom: 40,
-    right: 20,
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    transform: [{ rotate: '45deg' }],
-  },
-
-  // Scroll
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 100,
-  },
 
   // Header
   header: {
-    paddingTop: Platform.OS === 'ios' ? 60 : 50,
+    paddingTop: Platform.OS === 'ios' ? 56 : 44,
     paddingHorizontal: 20,
-    paddingBottom: 24,
   },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  greetingSection: {},
+  
+  // Greeting - Inline Style
+  greetingSection: {
+    flex: 1,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  greetingIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  greetingEmoji: {
+    fontSize: 22,
+  },
+  greetingTextContainer: {
+    flex: 1,
+  },
   greetingText: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.85)',
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
   userName: {
-    fontSize: 28,
+    fontSize: 20,
     color: '#FFF',
     fontFamily: FONT_FAMILIES.SORA.BOLD,
-    marginTop: 4,
+    marginTop: 2,
   },
+  
+  // Top Actions - Streak + Notification
   topActions: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    gap: 10,
+  },
+  streakPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 107, 107, 0.25)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 107, 107, 0.4)',
+  },
+  streakFireIcon: {
+    fontSize: 16,
+    marginRight: 4,
+  },
+  streakPillValue: {
+    fontSize: 16,
+    color: '#FFF',
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
   iconButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -668,15 +714,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   iconButtonText: {
-    fontSize: 22,
+    fontSize: 20,
   },
   notifBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    top: 6,
+    right: 6,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#EF4444',
     justifyContent: 'center',
     alignItems: 'center',
@@ -684,7 +730,7 @@ const styles = StyleSheet.create({
     borderColor: '#059669',
   },
   notifBadgeText: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#FFF',
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
@@ -695,10 +741,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 24,
-    padding: 16,
+    borderRadius: 20,
+    padding: 14,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
+    marginBottom: 12,
   },
   profileLeft: {
     flexDirection: 'row',
@@ -709,38 +756,19 @@ const styles = StyleSheet.create({
     position: 'relative',
     marginRight: 14,
   },
-  levelRing: {
-    position: 'absolute',
-    top: -4,
-    left: -4,
-    right: -4,
-    bottom: -4,
-    borderRadius: 28,
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  levelRingProgress: {
-    position: 'absolute',
-    top: -3,
-    left: -3,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#FFD60A',
-  },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 20,
-    borderWidth: 3,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 2,
     borderColor: '#FFF',
   },
   levelBadgeSmall: {
     position: 'absolute',
     bottom: -4,
     right: -4,
-    width: 24,
-    height: 24,
+    width: 22,
+    height: 22,
     borderRadius: 8,
     backgroundColor: '#FFD60A',
     justifyContent: 'center',
@@ -749,62 +777,79 @@ const styles = StyleSheet.create({
     borderColor: '#059669',
   },
   levelBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#000',
     fontFamily: FONT_FAMILIES.SORA.BOLD,
   },
   profileInfo: {
     flex: 1,
   },
-  levelName: {
-    fontSize: 14,
-    color: '#FFF',
-    fontFamily: FONT_FAMILIES.SORA.SEMIBOLD,
-    marginBottom: 8,
-  },
-  xpBar: {
-    height: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  xpBarFill: {
-    height: '100%',
-    backgroundColor: '#FFD60A',
-    borderRadius: 3,
-  },
-  xpText: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
-    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
-  },
-  streakContainer: {},
-  streakBadge: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-  },
-  streakIcon: {
-    fontSize: 20,
-  },
-  streakValue: {
-    fontSize: 24,
+  profileName: {
+    fontSize: 16,
     color: '#FFF',
     fontFamily: FONT_FAMILIES.SORA.BOLD,
+  },
+  levelName: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+    fontFamily: FONT_FAMILIES.SORA.MEDIUM,
     marginTop: 2,
   },
-  streakLabel: {
+  
+  // Mini XP Bar (inline with profile info)
+  miniXpContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  miniXpBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginRight: 8,
+  },
+  miniXpBarFill: {
+    height: '100%',
+    backgroundColor: '#FFD60A',
+    borderRadius: 2,
+  },
+  miniXpText: {
     fontSize: 10,
-    color: 'rgba(255,255,255,0.8)',
+    color: '#FFD60A',
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    minWidth: 28,
+  },
+  
+  // Points Badge - No Border, Square
+  pointsBadge: {
+    width: 64,
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 214, 10, 0.15)',
+    borderRadius: 16,
+  },
+  pointsBadgeIcon: {
+    fontSize: 18,
+  },
+  pointsBadgeValue: {
+    fontSize: 16,
+    color: '#FFD60A',
+    fontFamily: FONT_FAMILIES.SORA.BOLD,
+    marginTop: 1,
+  },
+  pointsBadgeLabel: {
+    fontSize: 9,
+    color: 'rgba(255,255,255,0.6)',
     fontFamily: FONT_FAMILIES.SORA.MEDIUM,
   },
 
   // Content
   content: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 20,
   },
 
   // Stats
